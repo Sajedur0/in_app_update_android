@@ -1,3 +1,7 @@
+## 1.0.3
+
+- Migrated to Flutter Built-in Kotlin support by removing manual KGP configuration.
+
 ## 1.0.2
 
 - Null safety improvements: removed force unwrapping in method channel calls.
