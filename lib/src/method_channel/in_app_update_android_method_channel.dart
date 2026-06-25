@@ -19,7 +19,10 @@ class MethodChannelInAppUpdateAndroid extends InAppUpdateAndroidPlatform {
     final result = await _methodChannel.invokeMapMethod<String, dynamic>(
       'checkForUpdateAndroid',
     );
-    return AppUpdateInfoAndroid.fromMap(result!);
+    if (result == null) {
+      throw Exception('checkForUpdateAndroid returned null');
+    }
+    return AppUpdateInfoAndroid.fromMap(result);
   }
 
   @override
@@ -30,7 +33,10 @@ class MethodChannelInAppUpdateAndroid extends InAppUpdateAndroidPlatform {
       'startImmediateUpdateAndroid',
       {'allowAssetPackDeletion': allowAssetPackDeletion},
     );
-    return UpdateResultAndroid.fromValue(result!);
+    if (result == null) {
+      throw Exception('startImmediateUpdateAndroid returned null');
+    }
+    return UpdateResultAndroid.fromValue(result);
   }
 
   @override
@@ -41,7 +47,10 @@ class MethodChannelInAppUpdateAndroid extends InAppUpdateAndroidPlatform {
       'startFlexibleUpdateAndroid',
       {'allowAssetPackDeletion': allowAssetPackDeletion},
     );
-    return UpdateResultAndroid.fromValue(result!);
+    if (result == null) {
+      throw Exception('startFlexibleUpdateAndroid returned null');
+    }
+    return UpdateResultAndroid.fromValue(result);
   }
 
   @override

@@ -1,4 +1,4 @@
-package tech.sajedur0.in_app_update_android
+package sajedur0.in_app_update_android
 
 import android.app.Activity
 import android.content.Intent
@@ -79,6 +79,8 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
     }
 
     private fun unregisterActivityListener() {
+        installStateListener?.let { appUpdateManager?.unregisterListener(it) }
+        installStateListener = null
         activityPluginBinding?.removeActivityResultListener(this)
         activityPluginBinding = null
         activity = null
@@ -132,21 +134,19 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
         val allowAssetPackDeletion = call.argument<Boolean>("allowAssetPackDeletion") ?: false
 
         manager.appUpdateInfo.addOnSuccessListener { info ->
-            if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
-                info.isUpdateTypeAllowed(updateType)
+            if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE ||
+                info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS
             ) {
-                val options = AppUpdateOptions.newBuilder(updateType)
-                    .setAllowAssetPackDeletion(allowAssetPackDeletion)
-                    .build()
-
-                val requestCode = if (updateType == AppUpdateType.IMMEDIATE) {
-                    REQUEST_CODE_IMMEDIATE
-                } else {
-                    REQUEST_CODE_FLEXIBLE
+                if (!info.isUpdateTypeAllowed(updateType)) {
+                    pendingResult?.error(
+                        "UPDATE_NOT_AVAILABLE",
+                        "Update type not allowed",
+                        null
+                    )
+                    pendingResult = null
+                    return@addOnSuccessListener
                 }
 
-                manager.startUpdateFlowForResult(info, currentActivity, options, requestCode)
-            } else if (info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
                 val options = AppUpdateOptions.newBuilder(updateType)
                     .setAllowAssetPackDeletion(allowAssetPackDeletion)
                     .build()

@@ -1,5 +1,5 @@
-group = "tech.sajedur0.in_app_update_android"
-version = "1.0-SNAPSHOT"
+group = "sajedur0.in_app_update_android"
+version = "1.0.1"
 
 buildscript {
     ext.kotlin_version = "2.3.20"
@@ -25,7 +25,7 @@ apply plugin: "com.android.library"
 apply plugin: "kotlin-android"
 
 android {
-    namespace = "tech.sajedur0.in_app_update_android"
+    namespace = "sajedur0.in_app_update_android"
 
     compileSdk = 36
 
