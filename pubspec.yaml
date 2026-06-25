@@ -1,5 +1,5 @@
 name: in_app_update_android
-description: "A Flutter plugin for Android in-app updates using Google Play's In-App Updates API."
+description: "A Flutter plugin for prompting users about Android in-app updates using Play Core API."
 version: 1.0.1
 repository: https://github.com/sajedur0/in_app_update_android
 homepage: https://github.com/sajedur0/in_app_update_android
