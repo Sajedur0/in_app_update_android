@@ -1,6 +1,8 @@
 ## 1.0.1
 
-- This package is now Android-only.
+- Performance Improvements: Under-the-hood optimizations for a smoother and faster app experience.
+
+- Bug Fixes: Resolved minor issues to improve overall app stability.
 
 ## 1.0.0
 
