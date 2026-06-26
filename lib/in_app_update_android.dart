@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:in_app_update_android/src/models/models.dart';
 import 'package:in_app_update_android/src/platform_interface/in_app_update_android_platform_interface.dart';
 
@@ -7,8 +8,8 @@ export 'package:in_app_update_android/src/models/models.dart';
 /// In-App Updates API.
 ///
 /// Use [checkUpdateAndroid] to check for updates, then
-/// [startImmediateUpdateAndroid] or [startFlexibleUpdateAndroid] to start the
-/// update flow.
+/// [showImmediateUpdatePrompt] or [startImmediateUpdateAndroid] /
+/// [startFlexibleUpdateAndroid] to start the update flow.
 class InAppUpdateAndroid {
   /// Android: Checks whether an in-app update is available via Play Core.
   ///
@@ -16,6 +17,82 @@ class InAppUpdateAndroid {
   /// availability, version code, priority, staleness, and allowed update types.
   Future<AppUpdateInfoAndroid> checkUpdateAndroid() {
     return InAppUpdateAndroidPlatform.instance.checkUpdateAndroid();
+  }
+
+  /// Android: Shows a material prompt dialog with update details and starts
+  /// the immediate (full-screen, blocking) update flow if the user accepts.
+  ///
+  /// The dialog displays the new version code, update priority, and staleness
+  /// days. Tapping "Update" launches the Google Play immediate update flow.
+  ///
+  /// Returns [UpdateResultAndroid] if the user accepted the update and the
+  /// flow completed (or was canceled/failed), or `null` if the user dismissed
+  /// the dialog or no update was available.
+  ///
+  /// If [allowAssetPackDeletion] is `true`, the system may delete asset packs
+  /// to free up storage for the update.
+  ///
+  /// Use [title], [message], [updateButtonText], and [cancelButtonText] to
+  /// customize the dialog text. If omitted, sensible defaults are used.
+  Future<UpdateResultAndroid?> showImmediateUpdatePrompt(
+    BuildContext context, {
+    bool allowAssetPackDeletion = false,
+    String title = 'Update Available',
+    String? message,
+    String updateButtonText = 'Update',
+    String cancelButtonText = 'Not Now',
+  }) async {
+    final info = await checkUpdateAndroid();
+
+    if (!context.mounted) return null;
+
+    if (info.updateAvailability != UpdateAvailabilityAndroid.updateAvailable ||
+        !info.isImmediateUpdateAllowed) {
+      return null;
+    }
+
+    final accepted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        final buf = StringBuffer();
+        if (info.availableVersionCode != null) {
+          buf.writeln('New version: ${info.availableVersionCode}');
+        }
+        if (info.updatePriority > 0) {
+          buf.writeln('Priority: ${info.updatePriority}');
+        }
+        if (info.clientVersionStalenessDays != null) {
+          buf.writeln(
+            'Available since: ${info.clientVersionStalenessDays} days ago',
+          );
+        }
+        final detailMessage = message ?? buf.toString().trim();
+
+        return AlertDialog(
+          title: Text(title),
+          content: Text(detailMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(cancelButtonText),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(updateButtonText),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (accepted != true) {
+      return null;
+    }
+
+    return startImmediateUpdateAndroid(
+      allowAssetPackDeletion: allowAssetPackDeletion,
+    );
   }
 
   /// Android: Starts the immediate (full-screen, blocking) update flow.

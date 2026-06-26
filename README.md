@@ -38,6 +38,7 @@
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Package Layout](#package-layout)
 - [Usage](#usage)
   - [Check for Updates](#check-for-updates)
   - [Immediate Update](#immediate-update)
@@ -78,6 +79,35 @@ final inAppUpdate = InAppUpdateAndroid();
 
 ---
 
+## Package Layout
+
+```
+lib/
+├── in_app_update_android.dart          # Public API – main entry point
+└── src/
+    ├── method_channel/
+    │   └── in_app_update_android_method_channel.dart  # Method/event channel bridge
+    ├── models/
+    │   ├── app_update_info_android.dart               # Update metadata model
+    │   ├── install_state_android.dart                 # Install progress model
+    │   ├── install_status_android.dart                # Install status enum
+    │   ├── models.dart                                # Barrel export
+    │   ├── update_availability_android.dart           # Availability enum
+    │   └── update_result_android.dart                 # Result enum
+    └── platform_interface/
+        └── in_app_update_android_platform_interface.dart  # Abstract platform API
+
+android/src/main/kotlin/sajedur0/in_app_update_android/
+└── InAppUpdateAndroidPlugin.kt  # Native Android (Kotlin) implementation
+```
+
+The plugin follows Flutter's **Platform Interface** pattern:
+- `InAppUpdateAndroidPlatform` – abstract interface defining all methods
+- `MethodChannelInAppUpdateAndroid` – default implementation using `MethodChannel` / `EventChannel`
+- `InAppUpdateAndroidPlugin` (Kotlin) – Android-side handler via Play Core API
+
+---
+
 ## Usage
 
 ### Check for Updates
@@ -93,6 +123,25 @@ if (info.updateAvailability == UpdateAvailabilityAndroid.updateAvailable) {
 ```
 
 ### Immediate Update
+
+#### With built-in confirmation prompt (recommended)
+
+```dart
+import 'package:flutter/material.dart';
+
+// Show a Material dialog with update details
+final result = await inAppUpdate.showImmediateUpdatePrompt(
+  context,
+  title: 'Update Available',
+  updateButtonText: 'Update Now',
+);
+
+if (result == UpdateResultAndroid.success) {
+  // App is updating
+}
+```
+
+#### Direct trigger (no prompt)
 
 ```dart
 final result = await inAppUpdate.startImmediateUpdateAndroid();
@@ -135,8 +184,9 @@ if (result == UpdateResultAndroid.success) {
 ### InAppUpdateAndroid
 
 | Method / Property | Returns | Description |
-|---|---|---|
+|---|---|---|---|
 | `checkUpdateAndroid()` | `Future<AppUpdateInfoAndroid>` | Checks for an available update via Play Core. |
+| `showImmediateUpdatePrompt(BuildContext context, {bool allowAssetPackDeletion, String title, String? message, String updateButtonText, String cancelButtonText})` | `Future<UpdateResultAndroid?>` | Shows a Material confirmation dialog before starting the immediate update. Returns `null` if dismissed or no update is available. |
 | `startImmediateUpdateAndroid({bool allowAssetPackDeletion})` | `Future<UpdateResultAndroid>` | Starts a full-screen blocking update flow. |
 | `startFlexibleUpdateAndroid({bool allowAssetPackDeletion})` | `Future<UpdateResultAndroid>` | Starts a background download update flow. |
 | `completeUpdateAndroid()` | `Future<void>` | Installs a downloaded flexible update (triggers app restart). |
