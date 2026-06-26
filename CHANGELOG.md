@@ -1,3 +1,9 @@
+## 1.0.5
+
+- Added: `showImmediateUpdatePrompt()` – convenience method that checks for an update, shows a Material confirmation dialog with version details, and starts the immediate update flow on user acceptance.
+- Added: Customizable dialog parameters (`title`, `message`, `updateButtonText`, `cancelButtonText`).
+- Added: Package layout documentation to README.
+
 ## 1.0.4
 
 - Fixed: Immediate update flow now correctly resumes when returning from the Play Store update activity by handling `DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS` state.
