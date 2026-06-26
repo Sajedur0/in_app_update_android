@@ -1,3 +1,8 @@
+## 1.0.4
+
+- Fixed: Immediate update flow now correctly resumes when returning from the Play Store update activity by handling `DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS` state.
+- Added: `Application.ActivityLifecycleCallbacks` to monitor activity resume and restart interrupted update flows.
+
 ## 1.0.3
 
 - Migrated to Flutter Built-in Kotlin support by removing manual KGP configuration.

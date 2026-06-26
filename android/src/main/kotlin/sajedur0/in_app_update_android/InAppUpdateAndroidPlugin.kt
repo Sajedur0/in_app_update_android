@@ -1,7 +1,10 @@
 package sajedur0.in_app_update_android
 
 import android.app.Activity
+import android.app.Application
 import android.content.Intent
+import android.content.IntentSender
+import android.os.Bundle
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
@@ -22,7 +25,8 @@ import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
 
 class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
-    EventChannel.StreamHandler, PluginRegistry.ActivityResultListener {
+    EventChannel.StreamHandler, PluginRegistry.ActivityResultListener,
+    Application.ActivityLifecycleCallbacks {
 
     private lateinit var methodChannel: MethodChannel
     private lateinit var eventChannel: EventChannel
@@ -32,6 +36,8 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
     private var eventSink: EventChannel.EventSink? = null
     private var installStateListener: InstallStateUpdatedListener? = null
     private var pendingResult: Result? = null
+    private var appUpdateType: Int? = null
+    private var appUpdateInfo: AppUpdateInfo? = null
 
     companion object {
         private const val REQUEST_CODE_IMMEDIATE = 1001
@@ -60,6 +66,7 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
         activity = binding.activity
         activityPluginBinding = binding
         binding.addActivityResultListener(this)
+        binding.activity.application.registerActivityLifecycleCallbacks(this)
         appUpdateManager = AppUpdateManagerFactory.create(binding.activity)
     }
 
@@ -71,6 +78,7 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
         activity = binding.activity
         activityPluginBinding = binding
         binding.addActivityResultListener(this)
+        binding.activity.application.registerActivityLifecycleCallbacks(this)
         appUpdateManager = AppUpdateManagerFactory.create(binding.activity)
     }
 
@@ -81,6 +89,7 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
     private fun unregisterActivityListener() {
         installStateListener?.let { appUpdateManager?.unregisterListener(it) }
         installStateListener = null
+        activity?.application?.unregisterActivityLifecycleCallbacks(this)
         activityPluginBinding?.removeActivityResultListener(this)
         activityPluginBinding = null
         activity = null
@@ -130,10 +139,13 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
         }
 
         pendingResult = result
+        appUpdateType = updateType
 
         val allowAssetPackDeletion = call.argument<Boolean>("allowAssetPackDeletion") ?: false
 
         manager.appUpdateInfo.addOnSuccessListener { info ->
+            this.appUpdateInfo = info
+
             if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE ||
                 info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS
             ) {
@@ -246,6 +258,36 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
         pendingResult = null
         return true
     }
+
+    // endregion
+
+    // region Application.ActivityLifecycleCallbacks
+
+    override fun onActivityResumed(activity: Activity) {
+        if (appUpdateType == AppUpdateType.IMMEDIATE) {
+            appUpdateManager?.appUpdateInfo?.addOnSuccessListener { info ->
+                if (info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
+                    try {
+                        appUpdateManager?.startUpdateFlowForResult(
+                            info,
+                            activity,
+                            AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build(),
+                            REQUEST_CODE_IMMEDIATE
+                        )
+                    } catch (e: IntentSender.SendIntentException) {
+                        // Could not restart the update flow
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+    override fun onActivityStarted(activity: Activity) {}
+    override fun onActivityPaused(activity: Activity) {}
+    override fun onActivityStopped(activity: Activity) {}
+    override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+    override fun onActivityDestroyed(activity: Activity) {}
 
     // endregion
 }
