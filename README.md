@@ -58,7 +58,7 @@ Add this to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  in_app_update_android: ^1.0.3
+  in_app_update_android: ^1.0.6
 ```
 
 Then run:
