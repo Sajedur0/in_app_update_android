@@ -124,17 +124,12 @@ if (info.updateAvailability == UpdateAvailabilityAndroid.updateAvailable) {
 
 ### Immediate Update
 
-#### With built-in confirmation prompt (recommended)
+#### With Google Play Core's native popup (recommended)
 
 ```dart
-import 'package:flutter/material.dart';
-
-// Show a Material dialog with update details
-final result = await inAppUpdate.showImmediateUpdatePrompt(
-  context,
-  title: 'Update Available',
-  updateButtonText: 'Update Now',
-);
+// Shows Google Play Core's native update popup directly
+// Call this on every app launch to always prompt the user
+final result = await inAppUpdate.showImmediateUpdatePrompt();
 
 if (result == UpdateResultAndroid.success) {
   // App is updating
@@ -186,11 +181,11 @@ if (result == UpdateResultAndroid.success) {
 | Method / Property | Returns | Description |
 |---|---|---|---|
 | `checkUpdateAndroid()` | `Future<AppUpdateInfoAndroid>` | Checks for an available update via Play Core. |
-| `showImmediateUpdatePrompt(BuildContext context, {bool allowAssetPackDeletion, String title, String? message, String updateButtonText, String cancelButtonText})` | `Future<UpdateResultAndroid?>` | Shows a Material confirmation dialog before starting the immediate update. Returns `null` if dismissed or no update is available. |
+| `showImmediateUpdatePrompt({bool allowAssetPackDeletion})` | `Future<UpdateResultAndroid?>` | Shows Google Play Core's native update popup directly. Also triggers when `developerTriggeredUpdateInProgress` is detected. Returns `null` if no update is available. |
 | `startImmediateUpdateAndroid({bool allowAssetPackDeletion})` | `Future<UpdateResultAndroid>` | Starts a full-screen blocking update flow. |
 | `startFlexibleUpdateAndroid({bool allowAssetPackDeletion})` | `Future<UpdateResultAndroid>` | Starts a background download update flow. |
 | `completeUpdateAndroid()` | `Future<void>` | Installs a downloaded flexible update (triggers app restart). |
-| `installStateStreamAndroid` | `Stream<InstallStateAndroid>` | Stream of download progress and status events. |
+| `installStateStreamAndroid` | `Stream<InstallStateAndroid>` | Stream of download progress and status events for both immediate and flexible updates. |
 
 ---
 

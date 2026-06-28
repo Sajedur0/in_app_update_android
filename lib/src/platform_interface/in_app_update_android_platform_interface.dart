@@ -74,9 +74,10 @@ abstract class InAppUpdateAndroidPlatform extends PlatformInterface {
     );
   }
 
-  /// Android: A stream of install state changes during a flexible update.
+  /// Android: A stream of install state changes during any in-app update.
   ///
-  /// Emits [InstallStateAndroid] events with download progress and status.
+  /// Emits [InstallStateAndroid] events with download progress and status
+  /// for both immediate and flexible updates.
   Stream<InstallStateAndroid> get installStateStreamAndroid {
     throw UnimplementedError(
       'installStateStreamAndroid has not been implemented.',

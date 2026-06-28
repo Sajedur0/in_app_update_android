@@ -68,6 +68,7 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
         binding.addActivityResultListener(this)
         binding.activity.application.registerActivityLifecycleCallbacks(this)
         appUpdateManager = AppUpdateManagerFactory.create(binding.activity)
+        registerInstallStateListener()
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
@@ -80,6 +81,7 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
         binding.addActivityResultListener(this)
         binding.activity.application.registerActivityLifecycleCallbacks(this)
         appUpdateManager = AppUpdateManagerFactory.create(binding.activity)
+        registerInstallStateListener()
     }
 
     override fun onDetachedFromActivity() {
@@ -89,6 +91,7 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
     private fun unregisterActivityListener() {
         installStateListener?.let { appUpdateManager?.unregisterListener(it) }
         installStateListener = null
+        eventSink = null
         activity?.application?.unregisterActivityLifecycleCallbacks(this)
         activityPluginBinding?.removeActivityResultListener(this)
         activityPluginBinding = null
@@ -169,7 +172,17 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
                     REQUEST_CODE_FLEXIBLE
                 }
 
-                manager.startUpdateFlowForResult(info, currentActivity, options, requestCode)
+                try {
+                    manager.startUpdateFlowForResult(info, currentActivity, options, requestCode)
+                } catch (e: IntentSender.SendIntentException) {
+                    pendingResult?.error(
+                        "UPDATE_FLOW_FAILED",
+                        "Failed to start update flow: ${e.localizedMessage}",
+                        null
+                    )
+                    pendingResult = null
+                    this.appUpdateType = null
+                }
             } else {
                 pendingResult?.error(
                     "UPDATE_NOT_AVAILABLE",
@@ -216,10 +229,10 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
 
     // endregion
 
-    // region EventChannel.StreamHandler
+    // region InstallStateListener & EventChannel.StreamHandler
 
-    override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-        eventSink = events
+    private fun registerInstallStateListener() {
+        if (installStateListener != null) return
         installStateListener = InstallStateUpdatedListener { state ->
             eventSink?.success(
                 mapOf(
@@ -232,9 +245,11 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
         appUpdateManager?.registerListener(installStateListener!!)
     }
 
+    override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+        eventSink = events
+    }
+
     override fun onCancel(arguments: Any?) {
-        installStateListener?.let { appUpdateManager?.unregisterListener(it) }
-        installStateListener = null
         eventSink = null
     }
 
@@ -256,6 +271,7 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
 
         pendingResult?.success(resultValue)
         pendingResult = null
+        appUpdateType = null
         return true
     }
 
@@ -264,19 +280,21 @@ class InAppUpdateAndroidPlugin : FlutterPlugin, MethodCallHandler, ActivityAware
     // region Application.ActivityLifecycleCallbacks
 
     override fun onActivityResumed(activity: Activity) {
-        if (appUpdateType == AppUpdateType.IMMEDIATE) {
-            appUpdateManager?.appUpdateInfo?.addOnSuccessListener { info ->
-                if (info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
-                    try {
-                        appUpdateManager?.startUpdateFlowForResult(
-                            info,
-                            activity,
-                            AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build(),
-                            REQUEST_CODE_IMMEDIATE
-                        )
-                    } catch (e: IntentSender.SendIntentException) {
-                        // Could not restart the update flow
-                    }
+        if (activity !== this.activity) return
+
+        appUpdateManager?.appUpdateInfo?.addOnSuccessListener { info ->
+            if (info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS &&
+                info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+            ) {
+                try {
+                    appUpdateManager?.startUpdateFlowForResult(
+                        info,
+                        activity,
+                        AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build(),
+                        REQUEST_CODE_IMMEDIATE
+                    )
+                } catch (e: IntentSender.SendIntentException) {
+                    // Could not restart the update flow
                 }
             }
         }

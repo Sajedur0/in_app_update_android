@@ -1,3 +1,12 @@
+## 1.0.6
+
+- **Breaking**: `showImmediateUpdatePrompt()` now launches Google Play Core's native update popup directly instead of showing a custom Material dialog. Removed `context`, `title`, `message`, `updateButtonText`, `cancelButtonText` parameters.
+- **Added**: `installStateStreamAndroid` now works for both immediate and flexible updates. The `InstallStateUpdatedListener` is registered permanently while the plugin is attached, so install state events (download progress, install status) are emitted regardless of update type.
+- **Changed**: `showImmediateUpdatePrompt()` now also triggers when `developerTriggeredUpdateInProgress` is detected, so the prompt reappears every time the app is opened until the update is installed.
+- **Fixed**: Added `try-catch` around `startUpdateFlowForResult` on the native side to properly handle `IntentSender.SendIntentException`.
+- **Fixed**: `appUpdateType` is now cleared after activity result handling, preventing stale state on subsequent lifecycle callbacks.
+- **Fixed**: `onActivityResumed` now verifies the activity matches the plugin's activity and checks `isUpdateTypeAllowed` directly for more reliable update resumption.
+
 ## 1.0.5
 
 - Added: `showImmediateUpdatePrompt()` – convenience method that checks for an update, shows a Material confirmation dialog with version details, and starts the immediate update flow on user acceptance.
