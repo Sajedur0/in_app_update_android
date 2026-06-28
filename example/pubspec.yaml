@@ -1,0 +1,19 @@
+name: in_app_update_android_example
+description: "Demonstrates how to use the in_app_update_android plugin."
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  in_app_update_android:
+    path: ../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

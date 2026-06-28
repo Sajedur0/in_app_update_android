@@ -1,3 +1,12 @@
+## 1.0.7
+
+- **Added**: `InstallState` class to represent detailed in-app update progress (status, bytes downloaded, total bytes, and error code).
+- **Added**: `InAppUpdate.installStateListener` stream to listen to the new detailed `InstallState` progress events.
+- **Deprecated**: `InAppUpdate.installUpdateListener` (replaced by `installStateListener`).
+- **Fixed**: Native Android compilation target compatibility by aligning Kotlin's `jvmTarget` to `17` in `build.gradle`.
+- **Fixed**: Resolved Kotlin compilation overrides mismatch for `ActivityLifecycleCallbacks`.
+- **Fixed**: Cleaned up activity and stream listener registration to prevent memory leaks and handle permanent detachment.
+
 ## 1.0.6
 
 - **Breaking**: `showImmediateUpdatePrompt()` now launches Google Play Core's native update popup directly instead of showing a custom Material dialog. Removed `context`, `title`, `message`, `updateButtonText`, `cancelButtonText` parameters.

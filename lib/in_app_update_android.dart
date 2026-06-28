@@ -1,101 +1,222 @@
-import 'package:in_app_update_android/src/models/models.dart';
-import 'package:in_app_update_android/src/platform_interface/in_app_update_android_platform_interface.dart';
+import 'dart:async';
+import 'package:flutter/services.dart';
 
-export 'package:in_app_update_android/src/models/models.dart';
+/// Status of an in-app update installation.
+enum InstallStatus {
+  unknown,
+  pending,
+  downloading,
+  installing,
+  installed,
+  failed,
+  canceled,
+  downloaded;
 
-/// A Flutter plugin for in-app updates on Android using Google Play's
-/// In-App Updates API.
+  static InstallStatus fromPlayCoreValue(int value) {
+    return switch (value) {
+      1 => InstallStatus.pending,
+      2 => InstallStatus.downloading,
+      5 => InstallStatus.installing,
+      6 => InstallStatus.installed,
+      7 => InstallStatus.failed,
+      8 => InstallStatus.canceled,
+      11 => InstallStatus.downloaded,
+      _ => InstallStatus.unknown,
+    };
+  }
+}
+
+/// Availability of an in-app update.
+enum UpdateAvailability {
+  unknown,
+  updateNotAvailable,
+  updateAvailable,
+  developerTriggeredUpdateInProgress;
+
+  static UpdateAvailability fromPlayCoreValue(int value) {
+    return switch (value) {
+      1 => UpdateAvailability.updateNotAvailable,
+      2 => UpdateAvailability.updateAvailable,
+      3 => UpdateAvailability.developerTriggeredUpdateInProgress,
+      _ => UpdateAvailability.unknown,
+    };
+  }
+}
+
+/// Result of an in-app update flow.
+enum AppUpdateResult {
+  success,
+  userDeniedUpdate,
+  inAppUpdateFailed;
+
+  static AppUpdateResult fromValue(int value) {
+    return switch (value) {
+      0 => AppUpdateResult.success,
+      1 => AppUpdateResult.userDeniedUpdate,
+      _ => AppUpdateResult.inAppUpdateFailed,
+    };
+  }
+}
+
+/// Information about an available in-app update.
+class AppUpdateInfo {
+  final UpdateAvailability updateAvailability;
+  final bool immediateUpdateAllowed;
+  final List<int>? immediateAllowedPreconditions;
+  final bool flexibleUpdateAllowed;
+  final List<int>? flexibleAllowedPreconditions;
+  final int? availableVersionCode;
+  final InstallStatus installStatus;
+  final String packageName;
+  final int? clientVersionStalenessDays;
+  final int updatePriority;
+
+  const AppUpdateInfo({
+    required this.updateAvailability,
+    required this.immediateUpdateAllowed,
+    this.immediateAllowedPreconditions,
+    required this.flexibleUpdateAllowed,
+    this.flexibleAllowedPreconditions,
+    this.availableVersionCode,
+    required this.installStatus,
+    required this.packageName,
+    this.clientVersionStalenessDays,
+    required this.updatePriority,
+  });
+
+  factory AppUpdateInfo.fromMap(Map<String, dynamic> map) {
+    return AppUpdateInfo(
+      updateAvailability: UpdateAvailability.fromPlayCoreValue(
+        map['updateAvailability'] as int,
+      ),
+      immediateUpdateAllowed: map['immediateUpdateAllowed'] as bool,
+      immediateAllowedPreconditions:
+          (map['immediateAllowedPreconditions'] as List<dynamic>?)
+              ?.cast<int>(),
+      flexibleUpdateAllowed: map['flexibleUpdateAllowed'] as bool,
+      flexibleAllowedPreconditions:
+          (map['flexibleAllowedPreconditions'] as List<dynamic>?)
+              ?.cast<int>(),
+      availableVersionCode: map['availableVersionCode'] as int?,
+      installStatus: InstallStatus.fromPlayCoreValue(
+        map['installStatus'] as int,
+      ),
+      packageName: map['packageName'] as String,
+      clientVersionStalenessDays: map['clientVersionStalenessDays'] as int?,
+      updatePriority: map['updatePriority'] as int,
+    );
+  }
+}
+
+/// A Flutter plugin for Android in-app updates using Google Play Core API.
 ///
-/// Use [checkUpdateAndroid] to check for updates, then
-/// [startImmediateUpdateAndroid] or [startFlexibleUpdateAndroid] to start
-/// the update flow.
-class InAppUpdateAndroid {
-  /// Android: Checks whether an in-app update is available via Play Core.
-  ///
-  /// Returns an [AppUpdateInfoAndroid] containing update metadata such as
-  /// availability, version code, priority, staleness, and allowed update types.
-  Future<AppUpdateInfoAndroid> checkUpdateAndroid() {
-    return InAppUpdateAndroidPlatform.instance.checkUpdateAndroid();
-  }
+/// Provides static methods to check for updates, start immediate or flexible
+/// update flows, and listen to install status events.
+class InAppUpdate {
+  static const MethodChannel _methodChannel =
+      MethodChannel('in_app_update_android/methods');
+  static const EventChannel _eventChannel =
+      EventChannel('in_app_update_android/stateEvents');
 
-  /// Android: Directly shows Google Play Core's immediate update popup and
-  /// starts the full-screen blocking update flow when the user accepts.
-  ///
-  /// If an update is available or a developer-triggered update is in progress,
-  /// this launches Google Play's native update UI. Tapping "Update" on that
-  /// popup immediately begins downloading and installing the update.
-  ///
-  /// Returns [UpdateResultAndroid] if the flow completed (or was
-  /// canceled/failed), or `null` if no update is available.
-  ///
-  /// If [allowAssetPackDeletion] is `true`, the system may delete asset packs
-  /// to free up storage for the update.
-  ///
-  /// Call this on every app launch to ensure the prompt always appears when
-  /// an update is pending.
-  Future<UpdateResultAndroid?> showImmediateUpdatePrompt({
-    bool allowAssetPackDeletion = false,
-  }) async {
-    final info = await checkUpdateAndroid();
-
-    final canUpdate =
-        info.updateAvailability == UpdateAvailabilityAndroid.updateAvailable ||
-            info.updateAvailability ==
-                UpdateAvailabilityAndroid.developerTriggeredUpdateInProgress;
-
-    if (!canUpdate || !info.isImmediateUpdateAllowed) {
-      return null;
+  /// Checks whether an in-app update is available via Play Core.
+  static Future<AppUpdateInfo> checkForUpdate() async {
+    final result = await _methodChannel.invokeMapMethod<String, dynamic>(
+      'checkForUpdate',
+    );
+    if (result == null) {
+      throw Exception('checkForUpdate returned null');
     }
+    return AppUpdateInfo.fromMap(result);
+  }
 
-    return startImmediateUpdateAndroid(
-      allowAssetPackDeletion: allowAssetPackDeletion,
+  /// Starts the immediate (full-screen, blocking) update flow.
+  static Future<AppUpdateResult> performImmediateUpdate() async {
+    final result = await _methodChannel.invokeMethod<int>(
+      'performImmediateUpdate',
+    );
+    if (result == null) {
+      throw Exception('performImmediateUpdate returned null');
+    }
+    return AppUpdateResult.fromValue(result);
+  }
+
+  /// Starts the flexible (background download) update flow.
+  static Future<AppUpdateResult> startFlexibleUpdate() async {
+    final result = await _methodChannel.invokeMethod<int>(
+      'startFlexibleUpdate',
+    );
+    if (result == null) {
+      throw Exception('startFlexibleUpdate returned null');
+    }
+    return AppUpdateResult.fromValue(result);
+  }
+
+  /// Completes a flexible update, triggering an app restart.
+  static Future<void> completeFlexibleUpdate() async {
+    await _methodChannel.invokeMethod<void>('completeFlexibleUpdate');
+  }
+
+  /// Stream of install state events containing status, progress, and potential error codes.
+  static Stream<InstallState> get installStateListener {
+    return _eventChannel.receiveBroadcastStream().map((event) {
+      return InstallState.fromMap(event as Map<dynamic, dynamic>);
+    });
+  }
+
+  /// Stream of install status events during an update.
+  @Deprecated('Use installStateListener instead')
+  static Stream<InstallStatus> get installUpdateListener {
+    return installStateListener.map((state) => state.installStatus);
+  }
+}
+
+/// Detailed installation state of a flexible in-app update.
+class InstallState {
+  final InstallStatus installStatus;
+  final int bytesDownloaded;
+  final int totalBytesToDownload;
+  final int installErrorCode;
+
+  const InstallState({
+    required this.installStatus,
+    required this.bytesDownloaded,
+    required this.totalBytesToDownload,
+    required this.installErrorCode,
+  });
+
+  factory InstallState.fromMap(Map<dynamic, dynamic> map) {
+    return InstallState(
+      installStatus: InstallStatus.fromPlayCoreValue(
+        map['installStatus'] as int,
+      ),
+      bytesDownloaded: map['bytesDownloaded'] as int,
+      totalBytesToDownload: map['totalBytesToDownload'] as int,
+      installErrorCode: map['installErrorCode'] as int,
     );
   }
 
-  /// Android: Starts the immediate (full-screen, blocking) update flow.
-  ///
-  /// The user must accept the update to continue using the app. If the user
-  /// closes the update screen, [UpdateResultAndroid.userCanceled] is returned.
-  ///
-  /// If [allowAssetPackDeletion] is `true`, the system may delete asset packs
-  /// to free up storage for the update.
-  Future<UpdateResultAndroid> startImmediateUpdateAndroid({
-    bool allowAssetPackDeletion = false,
-  }) {
-    return InAppUpdateAndroidPlatform.instance.startImmediateUpdateAndroid(
-      allowAssetPackDeletion: allowAssetPackDeletion,
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is InstallState &&
+        other.installStatus == installStatus &&
+        other.bytesDownloaded == bytesDownloaded &&
+        other.totalBytesToDownload == totalBytesToDownload &&
+        other.installErrorCode == installErrorCode;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      installStatus,
+      bytesDownloaded,
+      totalBytesToDownload,
+      installErrorCode,
     );
   }
 
-  /// Android: Starts the flexible (background download) update flow.
-  ///
-  /// The update downloads in the background while the user continues
-  /// using the app. Listen to [installStateStreamAndroid] for download
-  /// progress, and call [completeUpdateAndroid] when the download is complete.
-  ///
-  /// If [allowAssetPackDeletion] is `true`, the system may delete asset packs
-  /// to free up storage for the update.
-  Future<UpdateResultAndroid> startFlexibleUpdateAndroid({
-    bool allowAssetPackDeletion = false,
-  }) {
-    return InAppUpdateAndroidPlatform.instance.startFlexibleUpdateAndroid(
-      allowAssetPackDeletion: allowAssetPackDeletion,
-    );
-  }
-
-  /// Android: Completes a flexible update by triggering an app restart.
-  ///
-  /// Call this after [installStateStreamAndroid] reports
-  /// [InstallStatusAndroid.downloaded].
-  Future<void> completeUpdateAndroid() {
-    return InAppUpdateAndroidPlatform.instance.completeUpdateAndroid();
-  }
-
-  /// Android: A stream of install state changes during any in-app update.
-  ///
-  /// Emits [InstallStateAndroid] events with download progress and status
-  /// for both immediate and flexible updates.
-  Stream<InstallStateAndroid> get installStateStreamAndroid {
-    return InAppUpdateAndroidPlatform.instance.installStateStreamAndroid;
+  @override
+  String toString() {
+    return 'InstallState(installStatus: $installStatus, bytesDownloaded: $bytesDownloaded, totalBytesToDownload: $totalBytesToDownload, installErrorCode: $installErrorCode)';
   }
 }

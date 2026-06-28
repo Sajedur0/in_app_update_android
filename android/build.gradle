@@ -1,4 +1,4 @@
-group = "sajedur0.in_app_update_android"
+group = "in_app_update_android"
 version = "1.0.4"
 
 buildscript {
@@ -22,13 +22,17 @@ allprojects {
 apply plugin: "com.android.library"
 
 android {
-    namespace = "sajedur0.in_app_update_android"
+    namespace = "in_app_update_android"
 
     compileSdk = 36
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
     }
 
     sourceSets {
