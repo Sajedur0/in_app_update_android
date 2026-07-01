@@ -1,3 +1,15 @@
+## 1.0.8
+
+- **Added**: `InAppUpdate.isAndroid` helper to guard Google Play in-app update calls in cross-platform Flutter apps.
+- **Added**: `InAppUpdateException` for typed plugin errors such as unsupported platforms and null platform responses.
+- **Added**: Optional `allowAssetPackDeletion` parameter to immediate and flexible update flows.
+- **Added**: `AppUpdateInfo.updateAvailable`, `AppUpdateInfo.immediateUpdateInProgress`, and `InstallState.downloadProgress` convenience helpers.
+- **Added**: Download byte metadata and failed update preconditions to the native update info payload.
+- **Changed**: Native Android update flow now uses `AppUpdateOptions` consistently when checking allowed update types and starting update flows.
+- **Improved**: Example app now listens to `installStateListener`, displays flexible update progress, and completes downloaded flexible updates.
+- **Improved**: README now documents Play Store testing requirements, internal app sharing, signing, version code, and rollout limitations.
+- **Fixed**: Pending update results are now completed with an error if the Flutter engine detaches before the update flow returns.
+
 ## 1.0.7
 
 - **Added**: `InstallState` class to represent detailed in-app update progress (status, bytes downloaded, total bytes, and error code).

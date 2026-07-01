@@ -1,60 +1,99 @@
 # in_app_update_android
 
-A Flutter plugin for Android in-app updates using Google Play Core API.
+A Flutter plugin for Android in-app updates using the Google Play Core In-App
+Update API.
 
-Supports immediate (blocking) and flexible (background) update flows with install status tracking.
+It supports immediate and flexible update flows, update metadata, install state
+events, download progress, and flexible update completion.
 
 ## Features
 
-- **Update Availability Check** – Query Google Play to see if an update is available
-- **Immediate Updates** – Full-screen, blocking update flow
-- **Flexible Updates** – Background download; install when ready
-- **Install Status Stream** – Real-time install status events via Dart stream
+- Check Google Play for update availability
+- Start immediate full-screen update flows
+- Start flexible background update flows
+- Listen to install state and download progress
+- Complete a downloaded flexible update
+- Optional `allowAssetPackDeletion` support for low-storage update flows
+- Typed Dart exception for unsupported platforms and null platform responses
+
+## Requirements
+
+- Android API 21 or newer
+- App installed from Google Play, internal app sharing, internal testing, closed
+  testing, open testing, or production
+- Same `applicationId` and signing key as the app published on Google Play
+- A higher `versionCode` available on Google Play
+- Google Play Store available on the device
+
+Google Play in-app updates do not work for ordinary locally sideloaded debug
+APKs. Use Play internal app sharing or a Play testing track when testing update
+availability.
 
 ## Usage
 
 ```dart
+import 'dart:async';
+
 import 'package:in_app_update_android/in_app_update_android.dart';
 
-// 1. Check for update
-final info = await InAppUpdate.checkForUpdate();
+StreamSubscription<InstallState>? subscription;
 
-// 2. Check status
-if (info.updateAvailability == UpdateAvailability.updateAvailable) {
-  // 3. Immediate update
-  final result = await InAppUpdate.performImmediateUpdate();
+Future<void> checkAndUpdate() async {
+  if (!InAppUpdate.isAndroid) return;
 
-  // Or flexible update
-  await InAppUpdate.startFlexibleUpdate();
+  final info = await InAppUpdate.checkForUpdate();
 
-  // 4. Listen to stream for detailed status & download progress
-  InAppUpdate.installStateListener.listen((state) {
-    if (state.installStatus == InstallStatus.downloaded) {
-      await InAppUpdate.completeFlexibleUpdate();
-    } else if (state.installStatus == InstallStatus.downloading) {
-      final progress = state.bytesDownloaded / state.totalBytesToDownload;
-      print("Download progress: ${(progress * 100).toStringAsFixed(1)}%");
-    }
-  });
+  if (!info.updateAvailable) return;
+
+  if (info.immediateUpdateAllowed || info.immediateUpdateInProgress) {
+    await InAppUpdate.performImmediateUpdate();
+    return;
+  }
+
+  if (info.flexibleUpdateAllowed) {
+    subscription = InAppUpdate.installStateListener.listen((state) async {
+      if (state.installStatus == InstallStatus.downloaded) {
+        await InAppUpdate.completeFlexibleUpdate();
+      }
+
+      final progress = state.downloadProgress;
+      if (progress != null) {
+        print('Download: ${(progress * 100).toStringAsFixed(1)}%');
+      }
+    });
+
+    await InAppUpdate.startFlexibleUpdate();
+  }
 }
+```
+
+If your app uses Play Asset Delivery and can safely redownload asset packs after
+an update, you can allow Play to delete asset packs on low-storage devices:
+
+```dart
+await InAppUpdate.performImmediateUpdate(allowAssetPackDeletion: true);
+await InAppUpdate.startFlexibleUpdate(allowAssetPackDeletion: true);
 ```
 
 ## API
 
 | Method | Returns | Description |
 |--------|---------|-------------|
+| `InAppUpdate.isAndroid` | `bool` | Whether the current Flutter target platform is Android |
 | `checkForUpdate()` | `Future<AppUpdateInfo>` | Check if an update is available |
-| `performImmediateUpdate()` | `Future<AppUpdateResult>` | Start immediate update flow |
-| `startFlexibleUpdate()` | `Future<AppUpdateResult>` | Start flexible (background) update |
-| `completeFlexibleUpdate()` | `Future<void>` | Complete flexible update (triggers restart) |
-| `installStateListener` | `Stream<InstallState>` | Stream of detailed install state events (progress, error code, status) |
-| `installUpdateListener` | `Stream<InstallStatus>` | (Deprecated) Stream of install status events |
+| `performImmediateUpdate()` | `Future<AppUpdateResult>` | Start an immediate update flow |
+| `startFlexibleUpdate()` | `Future<AppUpdateResult>` | Start a flexible update flow |
+| `completeFlexibleUpdate()` | `Future<void>` | Complete a downloaded flexible update |
+| `installStateListener` | `Stream<InstallState>` | Stream detailed install state, progress, and error code events |
+| `installUpdateListener` | `Stream<InstallStatus>` | Deprecated status-only stream |
 
-## Requirements
+## Play Console Notes
 
-- Android `minSdk 21`
-- Google Play Store installed and signed in
-- App distributed via Google Play Store
+- `updatePriority` is controlled by the Google Play Developer API release
+  field `inAppUpdatePriority`.
+- `clientVersionStalenessDays` is provided by Google Play when available.
+- Internal app sharing does not support `inAppUpdatePriority`.
+- Update availability can be delayed by Play Store caching and rollout state.
 
 ## License
 

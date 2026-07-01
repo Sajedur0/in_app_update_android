@@ -2,9 +2,7 @@ package in_app_update_android
 
 import android.app.Activity
 import android.app.Application
-import android.content.Context
 import android.content.Intent
-import android.content.IntentSender
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
@@ -12,7 +10,6 @@ import com.google.android.play.core.appupdate.AppUpdateOptions
 import com.google.android.play.core.install.InstallStateUpdatedListener
 import com.google.android.play.core.install.model.ActivityResult
 import com.google.android.play.core.install.model.AppUpdateType
-import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -30,21 +27,18 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
     private lateinit var methodChannel: MethodChannel
     private lateinit var eventChannel: EventChannel
-    private var applicationContext: Context? = null
     private var activity: Activity? = null
     private var activityPluginBinding: ActivityPluginBinding? = null
     private var appUpdateManager: AppUpdateManager? = null
     private var eventSink: EventChannel.EventSink? = null
     private var installStateListener: InstallStateUpdatedListener? = null
     private var pendingResult: Result? = null
-    private var appUpdateInfo: AppUpdateInfo? = null
 
     companion object {
         private const val REQUEST_CODE_START_UPDATE = 1276
     }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        applicationContext = binding.applicationContext
         appUpdateManager = AppUpdateManagerFactory.create(binding.applicationContext)
         methodChannel = MethodChannel(binding.binaryMessenger, "in_app_update_android/methods")
         methodChannel.setMethodCallHandler(this)
@@ -56,8 +50,9 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         methodChannel.setMethodCallHandler(null)
         eventChannel.setStreamHandler(null)
         unregisterInstallStateListener()
+        pendingResult?.error("ENGINE_DETACHED", "Flutter engine detached before update completed", null)
+        pendingResult = null
         appUpdateManager = null
-        applicationContext = null
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -94,8 +89,8 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
             "checkForUpdate" -> handleCheckForUpdate(result)
-            "performImmediateUpdate" -> handleStartUpdate(result, AppUpdateType.IMMEDIATE)
-            "startFlexibleUpdate" -> handleStartUpdate(result, AppUpdateType.FLEXIBLE)
+            "performImmediateUpdate" -> handleStartUpdate(call, result, AppUpdateType.IMMEDIATE)
+            "startFlexibleUpdate" -> handleStartUpdate(call, result, AppUpdateType.FLEXIBLE)
             "completeFlexibleUpdate" -> handleCompleteUpdate(result)
             else -> result.notImplemented()
         }
@@ -119,9 +114,11 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         }
     }
 
-    private fun handleStartUpdate(result: Result, updateType: Int) {
+    private fun handleStartUpdate(call: MethodCall, result: Result, updateType: Int) {
         val currentActivity = activity
         val manager = appUpdateManager
+        val allowAssetPackDeletion =
+            call.argument<Boolean>("allowAssetPackDeletion") ?: false
 
         if (currentActivity == null) {
             result.error("NO_ACTIVITY", "Plugin is not attached to an activity", null)
@@ -141,22 +138,21 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
         try {
             manager.appUpdateInfo.addOnSuccessListener { info ->
-                this.appUpdateInfo = info
+                val options = buildUpdateOptions(updateType, allowAssetPackDeletion)
 
                 if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE ||
                     info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS
                 ) {
-                    if (!info.isUpdateTypeAllowed(updateType)) {
+                    if (!info.isUpdateTypeAllowed(options)) {
+                        val preconditions = info.getFailedUpdatePreconditions(options).toList()
                         pendingResult?.error(
                             "UPDATE_NOT_AVAILABLE",
                             "Update type not allowed",
-                            null
+                            preconditions
                         )
                         pendingResult = null
                         return@addOnSuccessListener
                     }
-
-                    val options = AppUpdateOptions.newBuilder(updateType).build()
 
                     try {
                         manager.startUpdateFlowForResult(
@@ -207,12 +203,17 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     private fun serializeAppUpdateInfo(info: AppUpdateInfo): Map<String, Any?> {
+        val immediateOptions = buildUpdateOptions(AppUpdateType.IMMEDIATE, false)
+        val flexibleOptions = buildUpdateOptions(AppUpdateType.FLEXIBLE, false)
+
         return mapOf(
             "updateAvailability" to info.updateAvailability(),
-            "immediateUpdateAllowed" to info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE),
-            "immediateAllowedPreconditions" to null,
-            "flexibleUpdateAllowed" to info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE),
-            "flexibleAllowedPreconditions" to null,
+            "immediateUpdateAllowed" to info.isUpdateTypeAllowed(immediateOptions),
+            "immediateAllowedPreconditions" to
+                info.getFailedUpdatePreconditions(immediateOptions).toList(),
+            "flexibleUpdateAllowed" to info.isUpdateTypeAllowed(flexibleOptions),
+            "flexibleAllowedPreconditions" to
+                info.getFailedUpdatePreconditions(flexibleOptions).toList(),
             "availableVersionCode" to if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE) {
                 info.availableVersionCode()
             } else {
@@ -222,7 +223,15 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             "packageName" to info.packageName(),
             "clientVersionStalenessDays" to info.clientVersionStalenessDays(),
             "updatePriority" to info.updatePriority(),
+            "bytesDownloaded" to info.bytesDownloaded(),
+            "totalBytesToDownload" to info.totalBytesToDownload(),
         )
+    }
+
+    private fun buildUpdateOptions(updateType: Int, allowAssetPackDeletion: Boolean): AppUpdateOptions {
+        return AppUpdateOptions.newBuilder(updateType)
+            .setAllowAssetPackDeletion(allowAssetPackDeletion)
+            .build()
     }
 
     private fun registerInstallStateListener() {
@@ -280,14 +289,15 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             appUpdateManager?.appUpdateInfo?.addOnSuccessListener { info ->
                 val currentActivity = this.activity
                 if (currentActivity == null) return@addOnSuccessListener
+                val options = buildUpdateOptions(AppUpdateType.IMMEDIATE, false)
                 if (info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS &&
-                    info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+                    info.isUpdateTypeAllowed(options)
                 ) {
                     try {
                         appUpdateManager?.startUpdateFlowForResult(
                             info,
                             currentActivity,
-                            AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build(),
+                            options,
                             REQUEST_CODE_START_UPDATE
                         )
                     } catch (_: Exception) {

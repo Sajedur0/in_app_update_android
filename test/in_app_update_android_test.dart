@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:in_app_update_android/in_app_update_android.dart';
@@ -7,47 +8,51 @@ void main() {
 
   group('InAppUpdate', () {
     setUp(() {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('in_app_update_android/methods'),
-        null,
-      );
+            const MethodChannel('in_app_update_android/methods'),
+            null,
+          );
+    });
+
+    tearDown(() {
+      debugDefaultTargetPlatformOverride = null;
     });
 
     test('checkForUpdate throws when channel returns null', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('in_app_update_android/methods'),
-        (MethodCall methodCall) async {
-          return null;
-        },
-      );
+            const MethodChannel('in_app_update_android/methods'),
+            (MethodCall methodCall) async {
+              return null;
+            },
+          );
 
-      expect(
-        () => InAppUpdate.checkForUpdate(),
-        throwsA(isA<Exception>()),
-      );
+      expect(() => InAppUpdate.checkForUpdate(), throwsA(isA<Exception>()));
     });
 
     test('checkForUpdate returns AppUpdateInfo on success', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('in_app_update_android/methods'),
-        (MethodCall methodCall) async {
-          return {
-            'updateAvailability': 2,
-            'immediateUpdateAllowed': true,
-            'immediateAllowedPreconditions': null,
-            'flexibleUpdateAllowed': true,
-            'flexibleAllowedPreconditions': null,
-            'availableVersionCode': 2,
-            'installStatus': 1,
-            'packageName': 'com.example.app',
-            'clientVersionStalenessDays': null,
-            'updatePriority': 0,
-          };
-        },
-      );
+            const MethodChannel('in_app_update_android/methods'),
+            (MethodCall methodCall) async {
+              return {
+                'updateAvailability': 2,
+                'immediateUpdateAllowed': true,
+                'immediateAllowedPreconditions': null,
+                'flexibleUpdateAllowed': true,
+                'flexibleAllowedPreconditions': null,
+                'availableVersionCode': 2,
+                'installStatus': 1,
+                'packageName': 'com.example.app',
+                'clientVersionStalenessDays': null,
+                'updatePriority': 0,
+                'bytesDownloaded': 0,
+                'totalBytesToDownload': 0,
+              };
+            },
+          );
 
       final info = await InAppUpdate.checkForUpdate();
 
@@ -56,16 +61,17 @@ void main() {
       expect(info.immediateUpdateAllowed, true);
       expect(info.flexibleUpdateAllowed, true);
       expect(info.availableVersionCode, 2);
+      expect(info.updateAvailable, true);
     });
 
     test('performImmediateUpdate throws when channel returns null', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('in_app_update_android/methods'),
-        (MethodCall methodCall) async {
-          return null;
-        },
-      );
+            const MethodChannel('in_app_update_android/methods'),
+            (MethodCall methodCall) async {
+              return null;
+            },
+          );
 
       expect(
         () => InAppUpdate.performImmediateUpdate(),
@@ -74,27 +80,32 @@ void main() {
     });
 
     test('performImmediateUpdate returns success', () async {
+      Object? arguments;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('in_app_update_android/methods'),
-        (MethodCall methodCall) async {
-          return 0;
-        },
+            const MethodChannel('in_app_update_android/methods'),
+            (MethodCall methodCall) async {
+              arguments = methodCall.arguments;
+              return 0;
+            },
+          );
+
+      final result = await InAppUpdate.performImmediateUpdate(
+        allowAssetPackDeletion: true,
       );
 
-      final result = await InAppUpdate.performImmediateUpdate();
-
       expect(result, AppUpdateResult.success);
+      expect(arguments, {'allowAssetPackDeletion': true});
     });
 
     test('performImmediateUpdate returns userDeniedUpdate', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('in_app_update_android/methods'),
-        (MethodCall methodCall) async {
-          return 1;
-        },
-      );
+            const MethodChannel('in_app_update_android/methods'),
+            (MethodCall methodCall) async {
+              return 1;
+            },
+          );
 
       final result = await InAppUpdate.performImmediateUpdate();
 
@@ -104,11 +115,11 @@ void main() {
     test('startFlexibleUpdate throws when channel returns null', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('in_app_update_android/methods'),
-        (MethodCall methodCall) async {
-          return null;
-        },
-      );
+            const MethodChannel('in_app_update_android/methods'),
+            (MethodCall methodCall) async {
+              return null;
+            },
+          );
 
       expect(
         () => InAppUpdate.startFlexibleUpdate(),
@@ -117,31 +128,40 @@ void main() {
     });
 
     test('startFlexibleUpdate returns success', () async {
+      Object? arguments;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('in_app_update_android/methods'),
-        (MethodCall methodCall) async {
-          return 0;
-        },
-      );
+            const MethodChannel('in_app_update_android/methods'),
+            (MethodCall methodCall) async {
+              arguments = methodCall.arguments;
+              return 0;
+            },
+          );
 
       final result = await InAppUpdate.startFlexibleUpdate();
 
       expect(result, AppUpdateResult.success);
+      expect(arguments, {'allowAssetPackDeletion': false});
     });
 
     test('completeFlexibleUpdate does not throw', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('in_app_update_android/methods'),
-        (MethodCall methodCall) async {
-          return null;
-        },
-      );
+            const MethodChannel('in_app_update_android/methods'),
+            (MethodCall methodCall) async {
+              return null;
+            },
+          );
+
+      expect(InAppUpdate.completeFlexibleUpdate(), completes);
+    });
+
+    test('throws typed exception on unsupported platforms', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
 
       expect(
-        InAppUpdate.completeFlexibleUpdate(),
-        completes,
+        () => InAppUpdate.checkForUpdate(),
+        throwsA(isA<InAppUpdateException>()),
       );
     });
   });
@@ -166,23 +186,35 @@ void main() {
 
   group('UpdateAvailability', () {
     test('fromPlayCoreValue returns unknown for 0', () {
-      expect(UpdateAvailability.fromPlayCoreValue(0), UpdateAvailability.unknown);
+      expect(
+        UpdateAvailability.fromPlayCoreValue(0),
+        UpdateAvailability.unknown,
+      );
     });
 
     test('fromPlayCoreValue returns updateNotAvailable for 1', () {
-      expect(UpdateAvailability.fromPlayCoreValue(1), UpdateAvailability.updateNotAvailable);
+      expect(
+        UpdateAvailability.fromPlayCoreValue(1),
+        UpdateAvailability.updateNotAvailable,
+      );
     });
 
     test('fromPlayCoreValue returns updateAvailable for 2', () {
-      expect(UpdateAvailability.fromPlayCoreValue(2), UpdateAvailability.updateAvailable);
-    });
-
-    test('fromPlayCoreValue returns developerTriggeredUpdateInProgress for 3', () {
       expect(
-        UpdateAvailability.fromPlayCoreValue(3),
-        UpdateAvailability.developerTriggeredUpdateInProgress,
+        UpdateAvailability.fromPlayCoreValue(2),
+        UpdateAvailability.updateAvailable,
       );
     });
+
+    test(
+      'fromPlayCoreValue returns developerTriggeredUpdateInProgress for 3',
+      () {
+        expect(
+          UpdateAvailability.fromPlayCoreValue(3),
+          UpdateAvailability.developerTriggeredUpdateInProgress,
+        );
+      },
+    );
   });
 
   group('InstallStatus', () {
@@ -223,25 +255,25 @@ void main() {
     test('installStateListener emits mapped InstallState objects', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockStreamHandler(
-        const EventChannel('in_app_update_android/stateEvents'),
-        MockStreamHandler.inline(
-          onListen: (dynamic arguments, MockStreamHandlerEventSink events) {
-            events.success({
-              'installStatus': 2,
-              'bytesDownloaded': 500,
-              'totalBytesToDownload': 1000,
-              'installErrorCode': 0,
-            });
-            events.success({
-              'installStatus': 11,
-              'bytesDownloaded': 1000,
-              'totalBytesToDownload': 1000,
-              'installErrorCode': 0,
-            });
-          },
-          onCancel: (dynamic arguments) {},
-        ),
-      );
+            const EventChannel('in_app_update_android/stateEvents'),
+            MockStreamHandler.inline(
+              onListen: (dynamic arguments, MockStreamHandlerEventSink events) {
+                events.success({
+                  'installStatus': 2,
+                  'bytesDownloaded': 500,
+                  'totalBytesToDownload': 1000,
+                  'installErrorCode': 0,
+                });
+                events.success({
+                  'installStatus': 11,
+                  'bytesDownloaded': 1000,
+                  'totalBytesToDownload': 1000,
+                  'installErrorCode': 0,
+                });
+              },
+              onCancel: (dynamic arguments) {},
+            ),
+          );
 
       final events = await InAppUpdate.installStateListener.take(2).toList();
 
@@ -250,6 +282,7 @@ void main() {
       expect(events[0].bytesDownloaded, 500);
       expect(events[0].totalBytesToDownload, 1000);
       expect(events[0].installErrorCode, 0);
+      expect(events[0].downloadProgress, 0.5);
 
       expect(events[1].installStatus, InstallStatus.downloaded);
       expect(events[1].bytesDownloaded, 1000);
@@ -260,25 +293,25 @@ void main() {
     test('installUpdateListener emits mapped InstallStatus values', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockStreamHandler(
-        const EventChannel('in_app_update_android/stateEvents'),
-        MockStreamHandler.inline(
-          onListen: (dynamic arguments, MockStreamHandlerEventSink events) {
-            events.success({
-              'installStatus': 2,
-              'bytesDownloaded': 500,
-              'totalBytesToDownload': 1000,
-              'installErrorCode': 0,
-            });
-            events.success({
-              'installStatus': 11,
-              'bytesDownloaded': 1000,
-              'totalBytesToDownload': 1000,
-              'installErrorCode': 0,
-            });
-          },
-          onCancel: (dynamic arguments) {},
-        ),
-      );
+            const EventChannel('in_app_update_android/stateEvents'),
+            MockStreamHandler.inline(
+              onListen: (dynamic arguments, MockStreamHandlerEventSink events) {
+                events.success({
+                  'installStatus': 2,
+                  'bytesDownloaded': 500,
+                  'totalBytesToDownload': 1000,
+                  'installErrorCode': 0,
+                });
+                events.success({
+                  'installStatus': 11,
+                  'bytesDownloaded': 1000,
+                  'totalBytesToDownload': 1000,
+                  'installErrorCode': 0,
+                });
+              },
+              onCancel: (dynamic arguments) {},
+            ),
+          );
 
       final events = await InAppUpdate.installUpdateListener.take(2).toList();
 

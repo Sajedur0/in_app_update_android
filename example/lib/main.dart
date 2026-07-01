@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:in_app_update_android/in_app_update_android.dart';
 
@@ -29,13 +31,40 @@ class InAppUpdateScreen extends StatefulWidget {
 class _InAppUpdateScreenState extends State<InAppUpdateScreen> {
   String _status = 'Tap a button to start';
   bool _loading = false;
+  StreamSubscription<InstallState>? _installStateSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _installStateSubscription = InAppUpdate.installStateListener.listen(
+      (state) {
+        if (!mounted) return;
+        final progress = state.downloadProgress;
+        setState(() {
+          _status = progress == null
+              ? 'Install state: ${state.installStatus}'
+              : 'Install state: ${state.installStatus}\n'
+                    'Progress: ${(progress * 100).toStringAsFixed(1)}%';
+        });
+
+        if (state.installStatus == InstallStatus.downloaded) {
+          InAppUpdate.completeFlexibleUpdate();
+        }
+      },
+      onError: (Object error) {
+        if (!mounted) return;
+        setState(() => _status = 'Install state error: $error');
+      },
+    );
+  }
 
   Future<void> checkForUpdate() async {
     setState(() => _loading = true);
     try {
       final info = await InAppUpdate.checkForUpdate();
       setState(() {
-        _status = 'Availability: ${info.updateAvailability}\n'
+        _status =
+            'Availability: ${info.updateAvailability}\n'
             'Package: ${info.packageName}\n'
             'Version code: ${info.availableVersionCode}\n'
             'Priority: ${info.updatePriority}';
@@ -69,6 +98,12 @@ class _InAppUpdateScreenState extends State<InAppUpdateScreen> {
     } finally {
       setState(() => _loading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _installStateSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> completeFlexibleUpdate() async {
