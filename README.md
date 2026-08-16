@@ -18,6 +18,7 @@ events, download progress, and flexible update completion.
 
 ## Requirements
 
+- Flutter 3.44 or newer (Dart 3.12 or newer)
 - Android API 21 or newer
 - App installed from Google Play, internal app sharing, internal testing, closed
   testing, open testing, or production

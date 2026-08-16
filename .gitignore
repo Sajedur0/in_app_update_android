@@ -22,11 +22,12 @@ local.properties
 .pub-cache/
 .pub/
 build/
+.metadata
+.idea/
+.vscode/
 *.iml
 *.ipr
 *.iws
-.idea/
-.vscode/
 
 # Firebase
 google-services.json

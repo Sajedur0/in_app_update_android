@@ -1,18 +1,20 @@
-group = "in_app_update_android"
-version = "1.0.7"
-
 buildscript {
+    ext.kotlin_version = "2.3.20"
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:8.13.0")
+        classpath "com.android.tools.build:gradle:9.0.1"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
-allprojects {
+group = "in_app_update_android"
+version = "1.0.9"
+
+rootProject.allprojects {
     repositories {
         google()
         mavenCentral()
@@ -20,6 +22,11 @@ allprojects {
 }
 
 apply plugin: "com.android.library"
+
+final agpMajor = Integer.parseInt(com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.split('\\.')[0])
+if (agpMajor < 9) {
+    apply plugin: "org.jetbrains.kotlin.android"
+}
 
 android {
     namespace = "in_app_update_android"
@@ -31,8 +38,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    if (agpMajor < 9) {
+        kotlinOptions {
+            jvmTarget = "17"
+        }
     }
 
     sourceSets {
@@ -46,8 +55,9 @@ android {
 
     dependencies {
         implementation("com.google.android.play:app-update:2.1.0")
-        testImplementation("org.jetbrains.kotlin:kotlin-test")
-        testImplementation("org.mockito:mockito-core:5.0.0")
+        testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.3.20")
+        testImplementation("org.junit.jupiter:junit-jupiter:5.13.4")
+        testImplementation("org.mockito:mockito-core:5.23.0")
     }
 
     testOptions {

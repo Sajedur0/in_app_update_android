@@ -32,10 +32,10 @@ enum InstallStatus {
     return switch (value) {
       1 => InstallStatus.pending,
       2 => InstallStatus.downloading,
-      5 => InstallStatus.installing,
-      6 => InstallStatus.installed,
-      7 => InstallStatus.failed,
-      8 => InstallStatus.canceled,
+      3 => InstallStatus.installing,
+      4 => InstallStatus.installed,
+      5 => InstallStatus.failed,
+      6 => InstallStatus.canceled,
       11 => InstallStatus.downloaded,
       _ => InstallStatus.unknown,
     };

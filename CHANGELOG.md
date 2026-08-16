@@ -1,3 +1,10 @@
+## 1.0.9
+
+- **Fixed**: Example app now builds on AGP 9+ by enabling Android built-in Kotlin (`android.builtInKotlin=true`).
+- **Fixed**: Native activity lifecycle listeners are now unregistered when the Flutter engine detaches, preventing potential leaks.
+- **Changed**: Minimum Flutter version raised to `3.44.0` to match the required Dart 3.12 SDK and built-in Kotlin support.
+- **Changed**: Android Gradle module version now matches the pubspec version.
+
 ## 1.0.8
 
 - **Added**: `InAppUpdate.isAndroid` helper to guard Google Play in-app update calls in cross-platform Flutter apps.

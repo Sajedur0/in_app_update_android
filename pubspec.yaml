@@ -1,12 +1,12 @@
 name: in_app_update_android
 description: "A Flutter plugin for prompting users about Android in-app updates using Play Core API."
-version: 1.0.8
+version: 1.0.9
 repository: https://github.com/sajedur0/in_app_update_android
 homepage: https://github.com/sajedur0/in_app_update_android
 
 environment:
   sdk: ^3.12.2
-  flutter: '>=3.3.0'
+  flutter: '>=3.44.0'
 
 dependencies:
   flutter:

@@ -50,6 +50,7 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         methodChannel.setMethodCallHandler(null)
         eventChannel.setStreamHandler(null)
         unregisterInstallStateListener()
+        unregisterActivityListener()
         pendingResult?.error("ENGINE_DETACHED", "Flutter engine detached before update completed", null)
         pendingResult = null
         appUpdateManager = null

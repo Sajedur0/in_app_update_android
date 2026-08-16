@@ -234,20 +234,20 @@ void main() {
       expect(InstallStatus.fromPlayCoreValue(11), InstallStatus.downloaded);
     });
 
-    test('fromPlayCoreValue returns installing for 5', () {
-      expect(InstallStatus.fromPlayCoreValue(5), InstallStatus.installing);
+    test('fromPlayCoreValue returns installing for 3', () {
+      expect(InstallStatus.fromPlayCoreValue(3), InstallStatus.installing);
     });
 
-    test('fromPlayCoreValue returns installed for 6', () {
-      expect(InstallStatus.fromPlayCoreValue(6), InstallStatus.installed);
+    test('fromPlayCoreValue returns installed for 4', () {
+      expect(InstallStatus.fromPlayCoreValue(4), InstallStatus.installed);
     });
 
-    test('fromPlayCoreValue returns failed for 7', () {
-      expect(InstallStatus.fromPlayCoreValue(7), InstallStatus.failed);
+    test('fromPlayCoreValue returns failed for 5', () {
+      expect(InstallStatus.fromPlayCoreValue(5), InstallStatus.failed);
     });
 
-    test('fromPlayCoreValue returns canceled for 8', () {
-      expect(InstallStatus.fromPlayCoreValue(8), InstallStatus.canceled);
+    test('fromPlayCoreValue returns canceled for 6', () {
+      expect(InstallStatus.fromPlayCoreValue(6), InstallStatus.canceled);
     });
   });
 
