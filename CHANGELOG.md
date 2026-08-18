@@ -1,3 +1,12 @@
+## 1.1.0
+
+- **Fixed**: Flexible update `InstallStateUpdatedListener` is now registered eagerly when `startFlexibleUpdate()` is called, preventing missed progress events if the `installStateListener` stream subscription is set up after the update starts.
+- **Fixed**: Install state events are now buffered when the EventSink is not yet available and flushed once the stream is listened to, ensuring no download progress is lost.
+- **Fixed**: Flexible update state tracking now automatically completes the pending result when the update reaches a terminal state (downloaded, installed, failed, or canceled).
+- **Improved**: Example app now shows distinct UI feedback for flexible update downloading, failed, and canceled states.
+- **Added**: Unit tests for `startFlexibleUpdate` with `allowAssetPackDeletion` and `userDeniedUpdate` results.
+- **Added**: Unit tests for `installStateListener` handling of failed, canceled, and pending states.
+
 ## 1.0.9
 
 - **Fixed**: Example app now builds on AGP 9+ by enabling Android built-in Kotlin (`android.builtInKotlin=true`).

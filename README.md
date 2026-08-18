@@ -10,7 +10,7 @@ events, download progress, and flexible update completion.
 
 - Check Google Play for update availability
 - Start immediate full-screen update flows
-- Start flexible background update flows
+- Start flexible background update flows with reliable progress tracking
 - Listen to install state and download progress
 - Complete a downloaded flexible update
 - Optional `allowAssetPackDeletion` support for low-storage update flows
@@ -67,6 +67,11 @@ Future<void> checkAndUpdate() async {
   }
 }
 ```
+
+> **Note:** Subscribe to `installStateListener` **before** calling
+> `startFlexibleUpdate()`. The plugin buffers progress events if the stream
+> subscription is set up after the update starts, but subscribing first gives
+> you the most responsive UI.
 
 If your app uses Play Asset Delivery and can safely redownload asset packs after
 an update, you can allow Play to delete asset packs on low-storage devices:

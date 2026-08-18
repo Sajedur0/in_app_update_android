@@ -31,6 +31,7 @@ class InAppUpdateScreen extends StatefulWidget {
 class _InAppUpdateScreenState extends State<InAppUpdateScreen> {
   String _status = 'Tap a button to start';
   bool _loading = false;
+  bool _flexibleUpdateDownloading = false;
   StreamSubscription<InstallState>? _installStateSubscription;
 
   @override
@@ -47,8 +48,30 @@ class _InAppUpdateScreenState extends State<InAppUpdateScreen> {
                     'Progress: ${(progress * 100).toStringAsFixed(1)}%';
         });
 
+        if (state.installStatus == InstallStatus.downloading) {
+          setState(() => _flexibleUpdateDownloading = true);
+        }
+
         if (state.installStatus == InstallStatus.downloaded) {
+          setState(() {
+            _flexibleUpdateDownloading = false;
+            _status = 'Download complete. Installing...';
+          });
           InAppUpdate.completeFlexibleUpdate();
+        }
+
+        if (state.installStatus == InstallStatus.failed) {
+          setState(() {
+            _flexibleUpdateDownloading = false;
+            _status = 'Update failed (error code: ${state.installErrorCode})';
+          });
+        }
+
+        if (state.installStatus == InstallStatus.canceled) {
+          setState(() {
+            _flexibleUpdateDownloading = false;
+            _status = 'Update canceled';
+          });
         }
       },
       onError: (Object error) {
@@ -89,10 +112,17 @@ class _InAppUpdateScreenState extends State<InAppUpdateScreen> {
   }
 
   Future<void> startFlexibleUpdate() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _status = 'Starting flexible update...';
+    });
     try {
       final result = await InAppUpdate.startFlexibleUpdate();
-      setState(() => _status = 'Flexible update result: $result');
+      if (result == AppUpdateResult.success) {
+        setState(() => _status = 'Flexible update started. Downloading...');
+      } else {
+        setState(() => _status = 'Flexible update result: $result');
+      }
     } catch (e) {
       setState(() => _status = 'Error: $e');
     } finally {
@@ -130,7 +160,7 @@ class _InAppUpdateScreenState extends State<InAppUpdateScreen> {
             children: [
               Text(_status, textAlign: TextAlign.center),
               const SizedBox(height: 24),
-              if (_loading)
+              if (_loading || _flexibleUpdateDownloading)
                 const CircularProgressIndicator()
               else ...[
                 ElevatedButton(

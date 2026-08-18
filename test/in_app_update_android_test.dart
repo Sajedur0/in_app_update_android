@@ -144,6 +144,39 @@ void main() {
       expect(arguments, {'allowAssetPackDeletion': false});
     });
 
+    test('startFlexibleUpdate passes allowAssetPackDeletion', () async {
+      Object? arguments;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('in_app_update_android/methods'),
+            (MethodCall methodCall) async {
+              arguments = methodCall.arguments;
+              return 0;
+            },
+          );
+
+      final result = await InAppUpdate.startFlexibleUpdate(
+        allowAssetPackDeletion: true,
+      );
+
+      expect(result, AppUpdateResult.success);
+      expect(arguments, {'allowAssetPackDeletion': true});
+    });
+
+    test('startFlexibleUpdate returns userDeniedUpdate', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('in_app_update_android/methods'),
+            (MethodCall methodCall) async {
+              return 1;
+            },
+          );
+
+      final result = await InAppUpdate.startFlexibleUpdate();
+
+      expect(result, AppUpdateResult.userDeniedUpdate);
+    });
+
     test('completeFlexibleUpdate does not throw', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
@@ -288,6 +321,86 @@ void main() {
       expect(events[1].bytesDownloaded, 1000);
       expect(events[1].totalBytesToDownload, 1000);
       expect(events[1].installErrorCode, 0);
+    });
+
+    test('installStateListener handles failed state', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockStreamHandler(
+            const EventChannel('in_app_update_android/stateEvents'),
+            MockStreamHandler.inline(
+              onListen: (dynamic arguments, MockStreamHandlerEventSink events) {
+                events.success({
+                  'installStatus': 2,
+                  'bytesDownloaded': 200,
+                  'totalBytesToDownload': 1000,
+                  'installErrorCode': 0,
+                });
+                events.success({
+                  'installStatus': 5,
+                  'bytesDownloaded': 200,
+                  'totalBytesToDownload': 1000,
+                  'installErrorCode': 3,
+                });
+              },
+              onCancel: (dynamic arguments) {},
+            ),
+          );
+
+      final events = await InAppUpdate.installStateListener.take(2).toList();
+
+      expect(events.length, 2);
+      expect(events[0].installStatus, InstallStatus.downloading);
+      expect(events[0].downloadProgress, 0.2);
+
+      expect(events[1].installStatus, InstallStatus.failed);
+      expect(events[1].installErrorCode, 3);
+    });
+
+    test('installStateListener handles canceled state', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockStreamHandler(
+            const EventChannel('in_app_update_android/stateEvents'),
+            MockStreamHandler.inline(
+              onListen: (dynamic arguments, MockStreamHandlerEventSink events) {
+                events.success({
+                  'installStatus': 6,
+                  'bytesDownloaded': 0,
+                  'totalBytesToDownload': 1000,
+                  'installErrorCode': 0,
+                });
+              },
+              onCancel: (dynamic arguments) {},
+            ),
+          );
+
+      final events = await InAppUpdate.installStateListener.take(1).toList();
+
+      expect(events.length, 1);
+      expect(events[0].installStatus, InstallStatus.canceled);
+    });
+
+    test('installStateListener handles pending state', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockStreamHandler(
+            const EventChannel('in_app_update_android/stateEvents'),
+            MockStreamHandler.inline(
+              onListen: (dynamic arguments, MockStreamHandlerEventSink events) {
+                events.success({
+                  'installStatus': 1,
+                  'bytesDownloaded': 0,
+                  'totalBytesToDownload': 0,
+                  'installErrorCode': 0,
+                });
+              },
+              onCancel: (dynamic arguments) {},
+            ),
+          );
+
+      final events = await InAppUpdate.installStateListener.take(1).toList();
+
+      expect(events.length, 1);
+      expect(events[0].installStatus, InstallStatus.pending);
+      expect(events[0].downloadProgress, isNull);
     });
 
     test('installUpdateListener emits mapped InstallStatus values', () async {

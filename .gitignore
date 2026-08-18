@@ -1,20 +1,10 @@
+# IntelliJ / Android Studio
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+*.ipr
+*.iws
+.idea/
 
-# Flutter
+# Flutter / Dart
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -23,21 +13,34 @@ local.properties
 .pub/
 build/
 .metadata
-.idea/
+coverage/
+
+# Android
+.gradle
+/local.properties
+/captures/
+.externalNativeBuild
+.cxx/
+
+# VS Code
 .vscode/
-*.iml
-*.ipr
-*.iws
 
 # Firebase
 google-services.json
 firebase-app-id.json
 
-# KeyStore
+# KeyStore / Signing
 *.jks
 *.keystore
+key.properties
 
-# Misc
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor swap/backup
 *.swp
 *.swo
 *~
+*.log
+*.pyc

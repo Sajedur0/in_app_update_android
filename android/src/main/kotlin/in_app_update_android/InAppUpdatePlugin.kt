@@ -10,6 +10,7 @@ import com.google.android.play.core.appupdate.AppUpdateOptions
 import com.google.android.play.core.install.InstallStateUpdatedListener
 import com.google.android.play.core.install.model.ActivityResult
 import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -33,6 +34,8 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private var eventSink: EventChannel.EventSink? = null
     private var installStateListener: InstallStateUpdatedListener? = null
     private var pendingResult: Result? = null
+    private var flexibleUpdateInProgress = false
+    private val pendingEvents = mutableListOf<Map<String, Any?>>()
 
     companion object {
         private const val REQUEST_CODE_START_UPDATE = 1276
@@ -53,6 +56,8 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         unregisterActivityListener()
         pendingResult?.error("ENGINE_DETACHED", "Flutter engine detached before update completed", null)
         pendingResult = null
+        flexibleUpdateInProgress = false
+        pendingEvents.clear()
         appUpdateManager = null
     }
 
@@ -137,6 +142,12 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
         pendingResult = result
 
+        if (updateType == AppUpdateType.FLEXIBLE) {
+            flexibleUpdateInProgress = true
+            pendingEvents.clear()
+            ensureInstallStateListenerRegistered()
+        }
+
         try {
             manager.appUpdateInfo.addOnSuccessListener { info ->
                 val options = buildUpdateOptions(updateType, allowAssetPackDeletion)
@@ -146,6 +157,10 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 ) {
                     if (!info.isUpdateTypeAllowed(options)) {
                         val preconditions = info.getFailedUpdatePreconditions(options).toList()
+                        if (updateType == AppUpdateType.FLEXIBLE) {
+                            flexibleUpdateInProgress = false
+                            unregisterInstallStateListener()
+                        }
                         pendingResult?.error(
                             "UPDATE_NOT_AVAILABLE",
                             "Update type not allowed",
@@ -160,6 +175,10 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                             info, currentActivity, options, REQUEST_CODE_START_UPDATE
                         )
                     } catch (e: Exception) {
+                        if (updateType == AppUpdateType.FLEXIBLE) {
+                            flexibleUpdateInProgress = false
+                            unregisterInstallStateListener()
+                        }
                         pendingResult?.error(
                             "UPDATE_FLOW_FAILED",
                             "Failed to start update flow: ${e.localizedMessage}",
@@ -168,6 +187,10 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                         pendingResult = null
                     }
                 } else {
+                    if (updateType == AppUpdateType.FLEXIBLE) {
+                        flexibleUpdateInProgress = false
+                        unregisterInstallStateListener()
+                    }
                     pendingResult?.error(
                         "UPDATE_NOT_AVAILABLE",
                         "No update available",
@@ -176,10 +199,18 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     pendingResult = null
                 }
             }.addOnFailureListener { e ->
+                if (updateType == AppUpdateType.FLEXIBLE) {
+                    flexibleUpdateInProgress = false
+                    unregisterInstallStateListener()
+                }
                 pendingResult?.error("CHECK_UPDATE_FAILED", "Failed to check for updates: ${e.localizedMessage}", null)
                 pendingResult = null
             }
         } catch (e: Exception) {
+            if (updateType == AppUpdateType.FLEXIBLE) {
+                flexibleUpdateInProgress = false
+                unregisterInstallStateListener()
+            }
             pendingResult?.error("CHECK_UPDATE_FAILED", "Failed to check for updates: ${e.localizedMessage}", null)
             pendingResult = null
         }
@@ -194,11 +225,14 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
         try {
             manager.completeUpdate().addOnSuccessListener {
+                flexibleUpdateInProgress = false
                 result.success(null)
             }.addOnFailureListener { e ->
+                flexibleUpdateInProgress = false
                 result.error("COMPLETE_UPDATE_FAILED", "Failed to complete update", e.localizedMessage)
             }
         } catch (e: Exception) {
+            flexibleUpdateInProgress = false
             result.error("COMPLETE_UPDATE_FAILED", "Failed to complete update: ${e.localizedMessage}", null)
         }
     }
@@ -235,20 +269,39 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             .build()
     }
 
-    private fun registerInstallStateListener() {
+    private fun ensureInstallStateListenerRegistered() {
         val manager = appUpdateManager ?: return
-        if (installStateListener == null) {
-            installStateListener = InstallStateUpdatedListener { state ->
-                val eventData = mapOf(
-                    "installStatus" to state.installStatus(),
-                    "bytesDownloaded" to state.bytesDownloaded(),
-                    "totalBytesToDownload" to state.totalBytesToDownload(),
-                    "installErrorCode" to state.installErrorCode()
-                )
-                eventSink?.success(eventData)
+        if (installStateListener != null) return
+
+        installStateListener = InstallStateUpdatedListener { state ->
+            val eventData = mapOf(
+                "installStatus" to state.installStatus(),
+                "bytesDownloaded" to state.bytesDownloaded(),
+                "totalBytesToDownload" to state.totalBytesToDownload(),
+                "installErrorCode" to state.installErrorCode()
+            )
+            val sink = eventSink
+            if (sink != null) {
+                sink.success(eventData)
+            } else {
+                pendingEvents.add(eventData)
             }
-            manager.registerListener(installStateListener!!)
+
+            if (state.installStatus() == InstallStatus.DOWNLOADED ||
+                state.installStatus() == InstallStatus.INSTALLED ||
+                state.installStatus() == InstallStatus.FAILED ||
+                state.installStatus() == InstallStatus.CANCELED
+            ) {
+                if (flexibleUpdateInProgress) {
+                    flexibleUpdateInProgress = false
+                    pendingResult?.let {
+                        it.success(0)
+                        pendingResult = null
+                    }
+                }
+            }
         }
+        manager.registerListener(installStateListener!!)
     }
 
     private fun unregisterInstallStateListener() {
@@ -260,7 +313,15 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
         eventSink = events
-        registerInstallStateListener()
+        ensureInstallStateListenerRegistered()
+
+        if (pendingEvents.isNotEmpty()) {
+            val eventsToSend = ArrayList(pendingEvents)
+            pendingEvents.clear()
+            for (event in eventsToSend) {
+                eventSink?.success(event)
+            }
+        }
     }
 
     override fun onCancel(arguments: Any?) {
