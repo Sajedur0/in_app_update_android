@@ -15,7 +15,9 @@ class InAppUpdateExampleApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'In-App Update Example',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+      ),
       home: const InAppUpdateScreen(),
     );
   }
@@ -57,7 +59,10 @@ class _InAppUpdateScreenState extends State<InAppUpdateScreen> {
             _flexibleUpdateDownloading = false;
             _status = 'Download complete. Installing...';
           });
-          InAppUpdate.completeFlexibleUpdate();
+          InAppUpdate.completeFlexibleUpdate().catchError((e) {
+            if (!mounted) return;
+            setState(() => _status = 'Install error: $e');
+          });
         }
 
         if (state.installStatus == InstallStatus.failed) {

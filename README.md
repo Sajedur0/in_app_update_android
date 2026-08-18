@@ -1,49 +1,60 @@
-# in_app_update_android
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sajedur0/in_app_update_android/main/logo.png" alt="Logo" width="120" onerror="this.style.display='none'"/>
+</p>
 
-A Flutter plugin for Android in-app updates using the Google Play Core In-App
-Update API.
+<h1 align="center">in_app_update_android</h1>
 
-It supports immediate and flexible update flows, update metadata, install state
-events, download progress, and flexible update completion.
+<p align="center">
+  <em>A Flutter plugin for Android in-app updates using the Google Play Core In-App Update API.</em>
+</p>
+
+<p align="center">
+  <a href="https://pub.dev/packages/in_app_update_android">
+    <img src="https://img.shields.io/pub/v/in_app_update_android?label=pub.dev&logo=dart" alt="pub.dev">
+  </a>
+  <a href="https://github.com/sajedur0/in_app_update_android/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/sajedur0/in_app_update_android?logo=github" alt="License">
+  </a>
+  <a href="https://github.com/sajedur0/in_app_update_android/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/sajedur0/in_app_update_android/ci.yml?branch=main&logo=github&label=CI" alt="CI">
+  </a>
+  <img src="https://img.shields.io/badge/platform-android-green?logo=android" alt="Platform">
+  <img src="https://img.shields.io/badge/Flutter-%3E%3D3.24.0-blue?logo=flutter" alt="Flutter">
+  <img src="https://img.shields.io/badge/Dart-%3E%3D3.5.0-blue?logo=dart" alt="Dart">
+</p>
+
+---
 
 ## Features
 
 - Check Google Play for update availability
-- Start immediate full-screen update flows
-- Start flexible background update flows with reliable progress tracking
-- Listen to install state and download progress
-- Complete a downloaded flexible update
-- Optional `allowAssetPackDeletion` support for low-storage update flows
-- Typed Dart exception for unsupported platforms and null platform responses
+- Immediate full-screen update flows
+- Flexible background update flows with reliable progress tracking
+- Install state and download progress listeners
+- Flexible update completion handling
+- Optional `allowAssetPackDeletion` for low-storage devices
+- Typed Dart exceptions for unsupported platforms
 
 ## Requirements
 
-- Flutter 3.44 or newer (Dart 3.12 or newer)
-- Android API 21 or newer
-- App installed from Google Play, internal app sharing, internal testing, closed
-  testing, open testing, or production
-- Same `applicationId` and signing key as the app published on Google Play
-- A higher `versionCode` available on Google Play
-- Google Play Store available on the device
+| Requirement | Details |
+|-------------|---------|
+| Flutter | `>=3.24.0` |
+| Dart | `>=3.5.0` |
+| Android API | 21+ |
+| Installation | Google Play, Internal App Sharing, or any Play testing track |
 
-Google Play in-app updates do not work for ordinary locally sideloaded debug
-APKs. Use Play internal app sharing or a Play testing track when testing update
-availability.
+> **Note:** In-app updates do **not** work with locally sideloaded debug APKs. Use Play internal app sharing or a testing track when developing.
 
-## Usage
+## Quick Start
 
 ```dart
-import 'dart:async';
-
 import 'package:in_app_update_android/in_app_update_android.dart';
-
-StreamSubscription<InstallState>? subscription;
 
 Future<void> checkAndUpdate() async {
   if (!InAppUpdate.isAndroid) return;
 
   final info = await InAppUpdate.checkForUpdate();
-
   if (!info.updateAvailable) return;
 
   if (info.immediateUpdateAllowed || info.immediateUpdateInProgress) {
@@ -52,14 +63,9 @@ Future<void> checkAndUpdate() async {
   }
 
   if (info.flexibleUpdateAllowed) {
-    subscription = InAppUpdate.installStateListener.listen((state) async {
+    InAppUpdate.installStateListener.listen((state) async {
       if (state.installStatus == InstallStatus.downloaded) {
         await InAppUpdate.completeFlexibleUpdate();
-      }
-
-      final progress = state.downloadProgress;
-      if (progress != null) {
-        print('Download: ${(progress * 100).toStringAsFixed(1)}%');
       }
     });
 
@@ -68,39 +74,25 @@ Future<void> checkAndUpdate() async {
 }
 ```
 
-> **Note:** Subscribe to `installStateListener` **before** calling
-> `startFlexibleUpdate()`. The plugin buffers progress events if the stream
-> subscription is set up after the update starts, but subscribing first gives
-> you the most responsive UI.
+> **Tip:** Subscribe to `installStateListener` **before** calling `startFlexibleUpdate()` for the most responsive UI.
 
-If your app uses Play Asset Delivery and can safely redownload asset packs after
-an update, you can allow Play to delete asset packs on low-storage devices:
-
-```dart
-await InAppUpdate.performImmediateUpdate(allowAssetPackDeletion: true);
-await InAppUpdate.startFlexibleUpdate(allowAssetPackDeletion: true);
-```
-
-## API
+## API Reference
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `InAppUpdate.isAndroid` | `bool` | Whether the current Flutter target platform is Android |
-| `checkForUpdate()` | `Future<AppUpdateInfo>` | Check if an update is available |
-| `performImmediateUpdate()` | `Future<AppUpdateResult>` | Start an immediate update flow |
-| `startFlexibleUpdate()` | `Future<AppUpdateResult>` | Start a flexible update flow |
-| `completeFlexibleUpdate()` | `Future<void>` | Complete a downloaded flexible update |
-| `installStateListener` | `Stream<InstallState>` | Stream detailed install state, progress, and error code events |
-| `installUpdateListener` | `Stream<InstallStatus>` | Deprecated status-only stream |
+| `InAppUpdate.isAndroid` | `bool` | Check if running on Android |
+| `checkForUpdate()` | `Future<AppUpdateInfo>` | Check for available updates |
+| `performImmediateUpdate()` | `Future<AppUpdateResult>` | Start immediate update |
+| `startFlexibleUpdate()` | `Future<AppUpdateResult>` | Start flexible update |
+| `completeFlexibleUpdate()` | `Future<void>` | Complete downloaded flexible update |
+| `installStateListener` | `Stream<InstallState>` | Stream install state & progress events |
 
 ## Play Console Notes
 
-- `updatePriority` is controlled by the Google Play Developer API release
-  field `inAppUpdatePriority`.
+- Update priority is controlled via `inAppUpdatePriority` in the Play Developer API.
 - `clientVersionStalenessDays` is provided by Google Play when available.
-- Internal app sharing does not support `inAppUpdatePriority`.
-- Update availability can be delayed by Play Store caching and rollout state.
+- Update availability may be delayed by Play Store caching and rollout state.
 
 ## License
 
-MIT
+[MIT](LICENSE)

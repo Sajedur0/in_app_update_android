@@ -75,6 +75,7 @@ enum AppUpdateResult {
 }
 
 /// Information about an available in-app update.
+@immutable
 class AppUpdateInfo {
   final UpdateAvailability updateAvailability;
   final bool immediateUpdateAllowed;
@@ -139,6 +140,53 @@ class AppUpdateInfo {
   bool get immediateUpdateInProgress =>
       updateAvailability ==
       UpdateAvailability.developerTriggeredUpdateInProgress;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is AppUpdateInfo &&
+        other.updateAvailability == updateAvailability &&
+        other.immediateUpdateAllowed == immediateUpdateAllowed &&
+        _listEquals(other.immediateAllowedPreconditions,
+            immediateAllowedPreconditions) &&
+        other.flexibleUpdateAllowed == flexibleUpdateAllowed &&
+        _listEquals(
+            other.flexibleAllowedPreconditions, flexibleAllowedPreconditions) &&
+        other.availableVersionCode == availableVersionCode &&
+        other.installStatus == installStatus &&
+        other.packageName == packageName &&
+        other.clientVersionStalenessDays == clientVersionStalenessDays &&
+        other.updatePriority == updatePriority &&
+        other.bytesDownloaded == bytesDownloaded &&
+        other.totalBytesToDownload == totalBytesToDownload;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      updateAvailability,
+      immediateUpdateAllowed,
+      flexibleUpdateAllowed,
+      availableVersionCode,
+      installStatus,
+      packageName,
+      clientVersionStalenessDays,
+      updatePriority,
+      bytesDownloaded,
+      totalBytesToDownload,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'AppUpdateInfo(updateAvailability: $updateAvailability, '
+        'immediateUpdateAllowed: $immediateUpdateAllowed, '
+        'flexibleUpdateAllowed: $flexibleUpdateAllowed, '
+        'availableVersionCode: $availableVersionCode, '
+        'installStatus: $installStatus, packageName: $packageName, '
+        'clientVersionStalenessDays: $clientVersionStalenessDays, '
+        'updatePriority: $updatePriority)';
+  }
 }
 
 /// A Flutter plugin for Android in-app updates using Google Play Core API.
@@ -152,6 +200,17 @@ class InAppUpdate {
   static const EventChannel _eventChannel = EventChannel(
     'in_app_update_android/stateEvents',
   );
+
+  static Stream<InstallState>? _cachedStateStream;
+
+  /// Resets the cached install state stream.
+  ///
+  /// This is primarily useful in tests to ensure a fresh stream for each test.
+  /// In production code this should not be needed.
+  @visibleForTesting
+  static void resetCachedStream() {
+    _cachedStateStream = null;
+  }
 
   /// In-app updates are only available on Android devices served by Google Play.
   static bool get isAndroid => defaultTargetPlatform == TargetPlatform.android;
@@ -222,9 +281,10 @@ class InAppUpdate {
   /// Stream of install state events containing status, progress, and potential error codes.
   static Stream<InstallState> get installStateListener {
     _ensureAndroid();
-    return _eventChannel.receiveBroadcastStream().map((event) {
+    _cachedStateStream ??= _eventChannel.receiveBroadcastStream().map((event) {
       return InstallState.fromMap(event as Map<dynamic, dynamic>);
     });
+    return _cachedStateStream!;
   }
 
   /// Stream of install status events during an update.
@@ -244,6 +304,7 @@ class InAppUpdate {
 }
 
 /// Detailed installation state of a flexible in-app update.
+@immutable
 class InstallState {
   final InstallStatus installStatus;
   final int bytesDownloaded;
@@ -315,4 +376,14 @@ List<int>? _asIntList(Object? value) {
     throw ArgumentError.value(value, 'value', 'Expected a list of integers.');
   }
   return value.map(_asInt).toList(growable: false);
+}
+
+bool _listEquals(List<int>? a, List<int>? b) {
+  if (identical(a, b)) return true;
+  if (a == null || b == null) return false;
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }

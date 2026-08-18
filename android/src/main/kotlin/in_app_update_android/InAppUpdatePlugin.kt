@@ -21,6 +21,7 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
+import java.util.Collections
 
 class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     EventChannel.StreamHandler, PluginRegistry.ActivityResultListener,
@@ -35,7 +36,8 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private var installStateListener: InstallStateUpdatedListener? = null
     private var pendingResult: Result? = null
     private var flexibleUpdateInProgress = false
-    private val pendingEvents = mutableListOf<Map<String, Any?>>()
+    private val pendingEvents: MutableList<Map<String, Any?>> =
+        Collections.synchronizedList(mutableListOf())
 
     companion object {
         private const val REQUEST_CODE_START_UPDATE = 1276
@@ -54,8 +56,11 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         eventChannel.setStreamHandler(null)
         unregisterInstallStateListener()
         unregisterActivityListener()
-        pendingResult?.error("ENGINE_DETACHED", "Flutter engine detached before update completed", null)
-        pendingResult = null
+        val result = pendingResult
+        if (result != null) {
+            result.error("ENGINE_DETACHED", "Flutter engine detached before update completed", null)
+            pendingResult = null
+        }
         flexibleUpdateInProgress = false
         pendingEvents.clear()
         appUpdateManager = null
@@ -80,8 +85,11 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     override fun onDetachedFromActivity() {
-        pendingResult?.error("ACTIVITY_DETACHED", "Activity was detached before update completed", null)
-        pendingResult = null
+        val result = pendingResult
+        if (result != null) {
+            result.error("ACTIVITY_DETACHED", "Activity was detached before update completed", null)
+            pendingResult = null
+        }
         unregisterActivityListener()
     }
 
@@ -223,6 +231,15 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             return
         }
 
+        if (!flexibleUpdateInProgress) {
+            result.error(
+                "NO_FLEXIBLE_UPDATE",
+                "No flexible update is in progress to complete",
+                null
+            )
+            return
+        }
+
         try {
             manager.completeUpdate().addOnSuccessListener {
                 flexibleUpdateInProgress = false
@@ -315,17 +332,21 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         eventSink = events
         ensureInstallStateListenerRegistered()
 
-        if (pendingEvents.isNotEmpty()) {
-            val eventsToSend = ArrayList(pendingEvents)
-            pendingEvents.clear()
-            for (event in eventsToSend) {
-                eventSink?.success(event)
+        synchronized(pendingEvents) {
+            if (pendingEvents.isNotEmpty()) {
+                val eventsToSend = ArrayList(pendingEvents)
+                pendingEvents.clear()
+                for (event in eventsToSend) {
+                    eventSink?.success(event)
+                }
             }
         }
     }
 
     override fun onCancel(arguments: Any?) {
-        unregisterInstallStateListener()
+        if (!flexibleUpdateInProgress) {
+            unregisterInstallStateListener()
+        }
         eventSink = null
     }
 
@@ -346,19 +367,23 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
     override fun onActivityResumed(activity: Activity) {
         if (activity !== this.activity) return
+        if (pendingResult != null) return
+
+        val manager = appUpdateManager ?: return
+        val currentActivity = this.activity ?: return
 
         try {
-            appUpdateManager?.appUpdateInfo?.addOnSuccessListener { info ->
-                val currentActivity = this.activity
-                if (currentActivity == null) return@addOnSuccessListener
+            manager.appUpdateInfo.addOnSuccessListener { info ->
+                if (pendingResult != null) return@addOnSuccessListener
+                val latestActivity = this.activity ?: return@addOnSuccessListener
                 val options = buildUpdateOptions(AppUpdateType.IMMEDIATE, false)
                 if (info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS &&
                     info.isUpdateTypeAllowed(options)
                 ) {
                     try {
-                        appUpdateManager?.startUpdateFlowForResult(
+                        manager.startUpdateFlowForResult(
                             info,
-                            currentActivity,
+                            latestActivity,
                             options,
                             REQUEST_CODE_START_UPDATE
                         )

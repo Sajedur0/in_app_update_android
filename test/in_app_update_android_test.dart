@@ -177,7 +177,7 @@ void main() {
       expect(result, AppUpdateResult.userDeniedUpdate);
     });
 
-    test('completeFlexibleUpdate does not throw', () async {
+    test('completeFlexibleUpdate completes on success', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
             const MethodChannel('in_app_update_android/methods'),
@@ -187,6 +187,24 @@ void main() {
           );
 
       expect(InAppUpdate.completeFlexibleUpdate(), completes);
+    });
+
+    test('completeFlexibleUpdate throws on error', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('in_app_update_android/methods'),
+            (MethodCall methodCall) async {
+              throw PlatformException(
+                code: 'NO_FLEXIBLE_UPDATE',
+                message: 'No flexible update is in progress to complete',
+              );
+            },
+          );
+
+      expect(
+        () => InAppUpdate.completeFlexibleUpdate(),
+        throwsA(isA<PlatformException>()),
+      );
     });
 
     test('throws typed exception on unsupported platforms', () async {

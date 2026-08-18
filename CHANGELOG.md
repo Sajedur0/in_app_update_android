@@ -1,79 +1,83 @@
+## 1.1.1
+
+- Fixed: `AppUpdateInfo` equality now compares allowed preconditions by value.
+- Added: `AppUpdateInfo.toString()` for easier debugging.
+- Fixed: `onCancel` no longer unregisters listener during active flexible update.
+- Fixed: Null-safe pending result handling on engine/activity detach.
+- Fixed: `pendingEvents` list is now thread-safe.
+- Fixed: `handleCompleteUpdate` returns `NO_FLEXIBLE_UPDATE` error when no flexible update is in progress.
+- Added: `InAppUpdate.resetCachedStream()` for test isolation.
+- Added: ProGuard consumer rules for Play Core library.
+- Added: Unit tests for `completeFlexibleUpdate` error path.
+- Migrated to Flutter's built-in Kotlin support.
+- Minimum Flutter `>=3.44.0`, Dart `^3.12.0`.
+
 ## 1.1.0
 
-- **Fixed**: Flexible update `InstallStateUpdatedListener` is now registered eagerly when `startFlexibleUpdate()` is called, preventing missed progress events if the `installStateListener` stream subscription is set up after the update starts.
-- **Fixed**: Install state events are now buffered when the EventSink is not yet available and flushed once the stream is listened to, ensuring no download progress is lost.
-- **Fixed**: Flexible update state tracking now automatically completes the pending result when the update reaches a terminal state (downloaded, installed, failed, or canceled).
-- **Improved**: Example app now shows distinct UI feedback for flexible update downloading, failed, and canceled states.
-- **Added**: Unit tests for `startFlexibleUpdate` with `allowAssetPackDeletion` and `userDeniedUpdate` results.
-- **Added**: Unit tests for `installStateListener` handling of failed, canceled, and pending states.
+- Fixed: Flexible update listener registered eagerly to prevent missed progress events.
+- Fixed: Install state events buffered and flushed when stream is listened to.
+- Fixed: Flexible update auto-completes pending result on terminal state.
+- Improved: Example app shows distinct UI states for flexible update.
+- Added: Unit tests for `startFlexibleUpdate` and `installStateListener`.
 
 ## 1.0.9
 
-- **Fixed**: Example app now builds on AGP 9+ by enabling Android built-in Kotlin (`android.builtInKotlin=true`).
-- **Fixed**: Native activity lifecycle listeners are now unregistered when the Flutter engine detaches, preventing potential leaks.
-- **Changed**: Minimum Flutter version raised to `3.44.0` to match the required Dart 3.12 SDK and built-in Kotlin support.
-- **Changed**: Android Gradle module version now matches the pubspec version.
+- Fixed: Example app builds on AGP 9+ with built-in Kotlin support.
+- Fixed: Lifecycle listeners unregistered on engine detach to prevent leaks.
+- Minimum Flutter `3.44.0`, Dart `3.12`.
 
 ## 1.0.8
 
-- **Added**: `InAppUpdate.isAndroid` helper to guard Google Play in-app update calls in cross-platform Flutter apps.
-- **Added**: `InAppUpdateException` for typed plugin errors such as unsupported platforms and null platform responses.
-- **Added**: Optional `allowAssetPackDeletion` parameter to immediate and flexible update flows.
-- **Added**: `AppUpdateInfo.updateAvailable`, `AppUpdateInfo.immediateUpdateInProgress`, and `InstallState.downloadProgress` convenience helpers.
-- **Added**: Download byte metadata and failed update preconditions to the native update info payload.
-- **Changed**: Native Android update flow now uses `AppUpdateOptions` consistently when checking allowed update types and starting update flows.
-- **Improved**: Example app now listens to `installStateListener`, displays flexible update progress, and completes downloaded flexible updates.
-- **Improved**: README now documents Play Store testing requirements, internal app sharing, signing, version code, and rollout limitations.
-- **Fixed**: Pending update results are now completed with an error if the Flutter engine detaches before the update flow returns.
+- Added: `InAppUpdate.isAndroid` guard for cross-platform apps.
+- Added: `InAppUpdateException` for typed plugin errors.
+- Added: Optional `allowAssetPackDeletion` for immediate and flexible updates.
+- Added: `AppUpdateInfo.updateAvailable`, `immediateUpdateInProgress`, `InstallState.downloadProgress` helpers.
+- Changed: Native update flow now uses `AppUpdateOptions` consistently.
+- Improved: Example app listens to `installStateListener` with progress display.
+- Fixed: Pending result completed with error on engine detach.
 
 ## 1.0.7
 
-- **Added**: `InstallState` class to represent detailed in-app update progress (status, bytes downloaded, total bytes, and error code).
-- **Added**: `InAppUpdate.installStateListener` stream to listen to the new detailed `InstallState` progress events.
-- **Deprecated**: `InAppUpdate.installUpdateListener` (replaced by `installStateListener`).
-- **Fixed**: Native Android compilation target compatibility by aligning Kotlin's `jvmTarget` to `17` in `build.gradle`.
-- **Fixed**: Resolved Kotlin compilation overrides mismatch for `ActivityLifecycleCallbacks`.
-- **Fixed**: Cleaned up activity and stream listener registration to prevent memory leaks and handle permanent detachment.
+- Added: `InstallState` class with status, bytes downloaded/total, and error code.
+- Added: `InAppUpdate.installStateListener` stream.
+- Deprecated: `installUpdateListener` (use `installStateListener`).
+- Fixed: Aligned Kotlin `jvmTarget` to `17` for compilation compatibility.
+- Fixed: Listener registration cleanup to prevent memory leaks.
 
 ## 1.0.6
 
-- **Breaking**: `showImmediateUpdatePrompt()` now launches Google Play Core's native update popup directly instead of showing a custom Material dialog. Removed `context`, `title`, `message`, `updateButtonText`, `cancelButtonText` parameters.
-- **Added**: `installStateStreamAndroid` now works for both immediate and flexible updates. The `InstallStateUpdatedListener` is registered permanently while the plugin is attached, so install state events (download progress, install status) are emitted regardless of update type.
-- **Changed**: `showImmediateUpdatePrompt()` now also triggers when `developerTriggeredUpdateInProgress` is detected, so the prompt reappears every time the app is opened until the update is installed.
-- **Fixed**: Added `try-catch` around `startUpdateFlowForResult` on the native side to properly handle `IntentSender.SendIntentException`.
-- **Fixed**: `appUpdateType` is now cleared after activity result handling, preventing stale state on subsequent lifecycle callbacks.
-- **Fixed**: `onActivityResumed` now verifies the activity matches the plugin's activity and checks `isUpdateTypeAllowed` directly for more reliable update resumption.
+- **Breaking**: `showImmediateUpdatePrompt()` now uses Play Core's native popup. Removed custom dialog parameters.
+- Added: `installStateStreamAndroid` works for both immediate and flexible updates.
+- Changed: `showImmediateUpdatePrompt()` re-triggers on `developerTriggeredUpdateInProgress`.
+- Fixed: `IntentSender.SendIntentException` caught on native side.
+- Fixed: `appUpdateType` cleared after activity result to prevent stale state.
+- Fixed: `onActivityResumed` validates activity and checks `isUpdateTypeAllowed`.
 
 ## 1.0.5
 
-- Added: `showImmediateUpdatePrompt()` – convenience method that checks for an update, shows a Material confirmation dialog with version details, and starts the immediate update flow on user acceptance.
-- Added: Customizable dialog parameters (`title`, `message`, `updateButtonText`, `cancelButtonText`).
-- Added: Package layout documentation to README.
+- Added: `showImmediateUpdatePrompt()` with version dialog and immediate update flow.
+- Added: Customizable dialog parameters.
 
 ## 1.0.4
 
-- Fixed: Immediate update flow now correctly resumes when returning from the Play Store update activity by handling `DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS` state.
-- Added: `Application.ActivityLifecycleCallbacks` to monitor activity resume and restart interrupted update flows.
+- Fixed: Immediate update resumes after returning from Play Store.
+- Added: `ActivityLifecycleCallbacks` to monitor resume and restart interrupted flows.
 
 ## 1.0.3
 
-- Migrated to Flutter Built-in Kotlin support by removing manual KGP configuration.
+- Migrated to Flutter built-in Kotlin support.
 
 ## 1.0.2
 
-- Null safety improvements: removed force unwrapping in method channel calls.
-- Code cleanup: merged duplicate Kotlin branches in update handler.
-- Fixed: listener leak during configuration changes.
-- Fixed: gradle version string now matches pubspec.
-- Added: Dart unit tests (24 tests).
-- Added: CI workflow (GitHub Actions).
+- Null safety: removed force unwrapping in method channel calls.
+- Fixed: Listener leak during configuration changes.
+- Added: 24 Dart unit tests.
+- Added: GitHub Actions CI workflow.
 
 ## 1.0.1
 
-- Performance Improvements: Under-the-hood optimizations for a smoother and faster app experience.
-
-- Bug Fixes: Resolved minor issues to improve overall app stability.
+- Performance improvements and minor bug fixes.
 
 ## 1.0.0
 
-- Initial version.
+- Initial release.

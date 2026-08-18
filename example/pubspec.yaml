@@ -3,7 +3,7 @@ description: "Demonstrates how to use the in_app_update_android plugin."
 publish_to: none
 
 environment:
-  sdk: ^3.0.0
+  sdk: ^3.5.0
 
 dependencies:
   flutter:
