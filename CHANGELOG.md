@@ -1,3 +1,8 @@
+## 1.1.4
+
+- Updated: Version bump to 1.1.4.
+- Removed: `consumerProguardFiles` from `android/build.gradle` (ProGuard rules shipped via `consumer-rules.pro` remain available).
+
 ## 1.1.3
 
 - Fixed: Added missing `android/src/main/AndroidManifest.xml` for the plugin.
