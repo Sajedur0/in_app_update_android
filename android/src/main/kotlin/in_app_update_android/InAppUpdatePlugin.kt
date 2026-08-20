@@ -231,15 +231,36 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             return
         }
 
+        // The flexible flow sets this flag while a flow is active. After an app
+        // restart it is lost, so fall back to asking Play whether a flexible
+        // update has already been downloaded and is awaiting final consent.
         if (!flexibleUpdateInProgress) {
-            result.error(
-                "NO_FLEXIBLE_UPDATE",
-                "No flexible update is in progress to complete",
-                null
-            )
+            manager.appUpdateInfo
+                .addOnSuccessListener { info ->
+                    if (info.installStatus() == InstallStatus.DOWNLOADED) {
+                        runCompleteUpdate(result, manager)
+                    } else {
+                        result.error(
+                            "NO_FLEXIBLE_UPDATE",
+                            "No flexible update is downloaded and awaiting completion",
+                            null
+                        )
+                    }
+                }
+                .addOnFailureListener { e ->
+                    result.error(
+                        "CHECK_UPDATE_FAILED",
+                        "Failed to verify flexible update state: ${e.localizedMessage}",
+                        null
+                    )
+                }
             return
         }
 
+        runCompleteUpdate(result, manager)
+    }
+
+    private fun runCompleteUpdate(result: Result, manager: AppUpdateManager) {
         try {
             manager.completeUpdate().addOnSuccessListener {
                 flexibleUpdateInProgress = false
@@ -304,8 +325,12 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 pendingEvents.add(eventData)
             }
 
-            if (state.installStatus() == InstallStatus.DOWNLOADED ||
-                state.installStatus() == InstallStatus.INSTALLED ||
+            // DOWNLOADED is NOT a terminal state for a flexible update: after the
+            // download finishes the app is expected to call completeFlexibleUpdate()
+            // to consent to the final update/restart. Keep the in-progress flag set
+            // through DOWNLOADED and only clear it on a genuinely terminal state, or
+            // when the completion/cancellation path runs.
+            if (state.installStatus() == InstallStatus.INSTALLED ||
                 state.installStatus() == InstallStatus.FAILED ||
                 state.installStatus() == InstallStatus.CANCELED
             ) {
@@ -378,6 +403,7 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 val latestActivity = this.activity ?: return@addOnSuccessListener
                 val options = buildUpdateOptions(AppUpdateType.IMMEDIATE, false)
                 if (info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS &&
+                    info.installStatus() != InstallStatus.INSTALLED &&
                     info.isUpdateTypeAllowed(options)
                 ) {
                     try {

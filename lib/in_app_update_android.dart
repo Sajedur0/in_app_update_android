@@ -166,7 +166,9 @@ class AppUpdateInfo {
     return Object.hash(
       updateAvailability,
       immediateUpdateAllowed,
+      Object.hashAll(immediateAllowedPreconditions ?? const <int>[]),
       flexibleUpdateAllowed,
+      Object.hashAll(flexibleAllowedPreconditions ?? const <int>[]),
       availableVersionCode,
       installStatus,
       packageName,

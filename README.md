@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sajedur0/in_app_update_android/main/logo.png" alt="Logo" width="120" onerror="this.style.display='none'"/>
-</p>
+
 
 <h1 align="center">in_app_update_android</h1>
 
@@ -15,12 +13,9 @@
   <a href="https://github.com/sajedur0/in_app_update_android/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/sajedur0/in_app_update_android?logo=github" alt="License">
   </a>
-  <a href="https://github.com/sajedur0/in_app_update_android/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/sajedur0/in_app_update_android/ci.yml?branch=main&logo=github&label=CI" alt="CI">
-  </a>
   <img src="https://img.shields.io/badge/platform-android-green?logo=android" alt="Platform">
-  <img src="https://img.shields.io/badge/Flutter-%3E%3D3.24.0-blue?logo=flutter" alt="Flutter">
-  <img src="https://img.shields.io/badge/Dart-%3E%3D3.5.0-blue?logo=dart" alt="Dart">
+  <img src="https://img.shields.io/badge/Flutter-%3E%3D3.44.0-blue?logo=flutter" alt="Flutter">
+  <img src="https://img.shields.io/badge/Dart-%3E%3D3.12.0-blue?logo=dart" alt="Dart">
 </p>
 
 ---
@@ -39,12 +34,36 @@
 
 | Requirement | Details |
 |-------------|---------|
-| Flutter | `>=3.24.0` |
-| Dart | `>=3.5.0` |
+| Flutter | `>=3.44.0` |
+| Dart | `>=3.12.0` |
 | Android API | 21+ |
 | Installation | Google Play, Internal App Sharing, or any Play testing track |
 
 > **Note:** In-app updates do **not** work with locally sideloaded debug APKs. Use Play internal app sharing or a testing track when developing.
+
+## How In-App Updates Work
+
+In-app updates is a Google Play Core libraries feature that prompts your **active** users to install a new version of your app without sending them to the Play Store listing. Because users can update in place, they experience fewer interruptions and are more likely to run the latest build.
+
+The feature is supported on **Android 5.0 (API level 21) and higher** for Android phones, tablets, and ChromeOS devices. In-app updates are **not** compatible with apps that use APK expansion files (`.obb`).
+
+Your app can support two UX flows:
+
+### Flexible updates
+
+Flexible updates download and install in the **background** with graceful state monitoring. This flow is appropriate when it's acceptable for the user to keep using the app while the update downloads — for example, when you want to encourage users to try a new feature that isn't critical to the core functionality of your app. The app then asks the user to confirm the install, after which Play completes the update (including any app restart).
+
+### Immediate updates
+
+Immediate updates are **full-screen** UX flows that require the user to update and restart the app in order to continue using it. This flow is best when an update is critical to the core functionality of your app. After a user accepts the update, Google Play handles the installation and app restart.
+
+### How this plugin maps to each flow
+
+| Flow | Plugin method |
+|------|---------------|
+| Flexible (background download → consent → install) | `InAppUpdate.startFlexibleUpdate()` → `InAppUpdate.completeFlexibleUpdate()` |
+| Immediate (full-screen, critical) | `InAppUpdate.performImmediateUpdate()` |
+| Both | `InAppUpdate.checkForUpdate()` + `installStateListener` for progress |
 
 ## Quick Start
 

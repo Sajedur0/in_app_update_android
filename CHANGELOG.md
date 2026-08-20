@@ -1,3 +1,8 @@
+## 1.1.2
+
+- Fixed: `AppUpdateInfo.hashCode` now includes allowed preconditions, consistent with equality.
+- Updated: Example project SDK to `^3.12.0`.
+
 ## 1.1.1
 
 - Fixed: `AppUpdateInfo` equality now compares allowed preconditions by value.
