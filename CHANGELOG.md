@@ -1,3 +1,7 @@
+## 1.1.3
+
+- Fixed: Added missing `android/src/main/AndroidManifest.xml` for the plugin.
+
 ## 1.1.2
 
 - Fixed: `AppUpdateInfo.hashCode` now includes allowed preconditions, consistent with equality.
