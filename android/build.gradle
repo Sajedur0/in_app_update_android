@@ -1,5 +1,5 @@
 group = "in_app_update_android"
-version = "1.1.4"
+version = "1.1.5"
 
 apply plugin: "com.android.library"
 
@@ -14,6 +14,7 @@ android {
 
     defaultConfig {
         minSdk = 21
+        consumerProguardFiles 'consumer-rules.pro'
     }
 
     dependencies {

@@ -1,3 +1,11 @@
+## 1.1.5
+
+- Added: `consumerProguardFiles 'consumer-rules.pro'` to `android/build.gradle` to ship ProGuard rules with the plugin.
+- Added: Keep rules for plugin classes in `android/consumer-rules.pro`.
+- Fixed: Track `userCanceledInSession` so a user-canceled update no longer re-triggers the immediate update flow on activity resume.
+- Fixed: Resolved MethodChannel hanging issue when `checkForUpdate()` or `performImmediateUpdate()` is called after a user cancels an update prompt in the same session.
+- Fixed: Added `InAppUpdate.isAndroid` check in example app `initState()` to prevent exceptions on non-Android platforms.
+
 ## 1.1.4
 
 - Updated: Version bump to 1.1.4.
@@ -24,7 +32,7 @@
 - Added: ProGuard consumer rules for Play Core library.
 - Added: Unit tests for `completeFlexibleUpdate` error path.
 - Migrated to Flutter's built-in Kotlin support.
-- Minimum Flutter `>=3.44.0`, Dart `^3.12.0`.
+- Minimum Flutter `>=3.10.0`, Dart `>=3.0.0`.
 
 ## 1.1.0
 
@@ -38,7 +46,7 @@
 
 - Fixed: Example app builds on AGP 9+ with built-in Kotlin support.
 - Fixed: Lifecycle listeners unregistered on engine detach to prevent leaks.
-- Minimum Flutter `3.44.0`, Dart `3.12`.
+- Minimum Flutter `>=3.10.0`, Dart `>=3.0.0`.
 
 ## 1.0.8
 

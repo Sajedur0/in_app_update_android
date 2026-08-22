@@ -14,8 +14,8 @@
     <img src="https://img.shields.io/github/license/sajedur0/in_app_update_android?logo=github" alt="License">
   </a>
   <img src="https://img.shields.io/badge/platform-android-green?logo=android" alt="Platform">
-  <img src="https://img.shields.io/badge/Flutter-%3E%3D3.44.0-blue?logo=flutter" alt="Flutter">
-  <img src="https://img.shields.io/badge/Dart-%3E%3D3.12.0-blue?logo=dart" alt="Dart">
+  <img src="https://img.shields.io/badge/Flutter-%3E%3D3.10.0-blue?logo=flutter" alt="Flutter">
+  <img src="https://img.shields.io/badge/Dart-%3E%3D3.0.0-blue?logo=dart" alt="Dart">
 </p>
 
 ---
@@ -34,8 +34,8 @@
 
 | Requirement | Details |
 |-------------|---------|
-| Flutter | `>=3.44.0` |
-| Dart | `>=3.12.0` |
+| Flutter | `>=3.10.0` |
+| Dart | `>=3.0.0` |
 | Android API | 21+ |
 | Installation | Google Play, Internal App Sharing, or any Play testing track |
 

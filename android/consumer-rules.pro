@@ -9,3 +9,8 @@
 -keep class com.google.android.play.core.assetpacks.** { *; }
 
 -dontwarn com.google.android.play.core.**
+
+
+# Plugin classes
+-keep class in_app_update_android.** { *; }
+-keepclassmembers class in_app_update_android.** { *; }

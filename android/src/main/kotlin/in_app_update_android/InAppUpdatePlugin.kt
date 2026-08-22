@@ -36,6 +36,7 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private var installStateListener: InstallStateUpdatedListener? = null
     private var pendingResult: Result? = null
     private var flexibleUpdateInProgress = false
+    private var userCanceledInSession = false
     private val pendingEvents: MutableList<Map<String, Any?>> =
         Collections.synchronizedList(mutableListOf())
 
@@ -148,6 +149,7 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             return
         }
 
+        userCanceledInSession = false
         pendingResult = result
 
         if (updateType == AppUpdateType.FLEXIBLE) {
@@ -380,7 +382,10 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
         val resultValue = when (resultCode) {
             Activity.RESULT_OK -> 0
-            Activity.RESULT_CANCELED -> 1
+            Activity.RESULT_CANCELED -> {
+                userCanceledInSession = true
+                1
+            }
             ActivityResult.RESULT_IN_APP_UPDATE_FAILED -> 2
             else -> 2
         }
@@ -393,12 +398,14 @@ class InAppUpdatePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     override fun onActivityResumed(activity: Activity) {
         if (activity !== this.activity) return
         if (pendingResult != null) return
+        if (userCanceledInSession) return
 
         val manager = appUpdateManager ?: return
         val currentActivity = this.activity ?: return
 
         try {
             manager.appUpdateInfo.addOnSuccessListener { info ->
+                if (userCanceledInSession) return@addOnSuccessListener
                 if (pendingResult != null) return@addOnSuccessListener
                 val latestActivity = this.activity ?: return@addOnSuccessListener
                 val options = buildUpdateOptions(AppUpdateType.IMMEDIATE, false)

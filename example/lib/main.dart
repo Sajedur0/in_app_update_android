@@ -39,6 +39,7 @@ class _InAppUpdateScreenState extends State<InAppUpdateScreen> {
   @override
   void initState() {
     super.initState();
+    if (!InAppUpdate.isAndroid) return;
     _installStateSubscription = InAppUpdate.installStateListener.listen(
       (state) {
         if (!mounted) return;
